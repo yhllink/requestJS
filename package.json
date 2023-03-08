@@ -1,0 +1,36 @@
+{
+  "name": "yhl-request",
+  "version": "0.0.",
+  "description": "",
+  "main": "lib/index.js",
+  "module": "es/index.js",
+  "typings": "lib/index.d.ts",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yhllink/utilsJS.git"
+  },
+  "author": "yaohanlin<827941132@qq.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yhllink/utilsJS/issues"
+  },
+  "homepage": "https://github.com/yhllink/utilsJS#readme",
+  "devDependencies": {
+    "@babel/core": "^7.21.0",
+    "@babel/preset-env": "^7.20.2",
+    "@rollup/plugin-babel": "^6.0.3",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@types/blueimp-md5": "^2.18.0",
+    "rollup": "^2.79.1",
+    "rollup-plugin-typescript2": "^0.32.0",
+    "tslib": "^2.4.0"
+  },
+  "dependencies": {
+    "blueimp-md5": "^2.19.0",
+    "yhl-utils": "^0.0.3"
+  }
+}
