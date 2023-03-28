@@ -1,4 +1,5 @@
 export type Method = 'get' | 'GET' | 'delete' | 'DELETE' | 'head' | 'HEAD' | 'options' | 'OPTIONS' | 'post' | 'POST' | 'put' | 'PUT'
+export type MethodUpper = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
 
 export type RequestData = { [key: string]: any }
 
@@ -6,7 +7,8 @@ export type requestCommonReturn = {
   status: number
   data: any
 
-  statusText: string
+  url: string
+  statusText: 'loading' | 'error' | 'OK'
   params: Params
   headers: Params['headers']
   request: any
@@ -14,11 +16,13 @@ export type requestCommonReturn = {
 }
 
 type AxiosMiddleFunction = (
-  method: Method,
+  method: MethodUpper,
   url: string,
   data: RequestData,
   params: Params
 ) => { method?: Method; url?: string; data?: RequestData; params?: Params }
+
+type AxiosMiddleEndFunction = (method: MethodUpper, url: string, data: RequestData, params: Params) => { data?: RequestData; header: Params['headers'] }
 
 export interface Params {
   baseURL?: false | string // 根路径
@@ -30,8 +34,6 @@ export interface Params {
   rid?: boolean // 请求随机数时间戳
   ridKey?: string // 请求随机数发送字段 默认 _rid
   getRidFn?: () => string | Promise<string> // 自定义生成随机数规则
-
-  structureDuplication?: boolean // 是否解决返回结构重复问题
 
   noReturn?: boolean // 不需要返回结果
 
@@ -45,7 +47,7 @@ export interface Params {
   debounceTime?: number // 防抖数据缓存时间 // 默认 3000
 
   baseData?: false | object // 基础数据
-  baseDataFn?: false | Function // 基础数据回调
+  baseDataFn?: false | ((Method: MethodUpper, url: string) => undefined | RequestData) // 基础数据回调
 
   delUndefined?: boolean // 删除参数中值为undefined的参数
   responseAll?: boolean // 是否返回全部数据
@@ -76,10 +78,10 @@ export interface Params {
 
   dataBeforeFn?: false | AxiosMiddleFunction // 数据处理前回调
   requestBeforeFn?: false | AxiosMiddleFunction // 请求前回调
-  requestBeforeMiddleFn?: false | AxiosMiddleFunction // 请求前最后一次回调 // 加密，验签
+  requestBeforeMiddleFn?: false | AxiosMiddleEndFunction // 请求前最后一次回调 // 加密，验签
 
   dataAfterMiddleFn?: false | ((data: any) => any | Promise<any>) // 请求后第一次回调 // 解密，验签
-  requestAfterFn?: false | ((type: 'success' | 'fail', data: any) => any) // 请求后回调
+  requestAfterFn?: false | ((data: any) => undefined | any) // 请求后回调
 }
 
 import checkReturnCode from './modules/checkReturnCode'
@@ -93,9 +95,20 @@ import setBaseData from './modules/setBaseData'
 import setHeaders from './modules/setHeader'
 import setToken from './modules/setToken'
 import fetch from './modules/fetch'
-// import xhr from './modules/xhr'
+import xhr from './modules/xhr'
 
-const requset = async function (
+const requset = function (
+  methodStart: Method,
+  urlStart: string,
+  paramsStart?: Params
+): (dataStart?: RequestData) => Promise<requestCommonReturn | requestCommonReturn['data'] | void> {
+  return function (dataStart?: RequestData) {
+    return requset.run(methodStart, urlStart, dataStart, paramsStart)
+  }
+}
+
+// 请求方法
+requset.run = async function (
   methodStart: Method,
   urlStart: string,
   dataStart?: RequestData,
@@ -108,13 +121,13 @@ const requset = async function (
   let data: RequestData = {}
 
   // 获取请求参数
-  data = setBaseData(params, dataStart)
+  data = setBaseData(method, url, params, dataStart)
 
   // 数据处理前回调
   if (params.dataBeforeFn) {
     const beforeData = params.dataBeforeFn(method, url, data, params)
     if (beforeData) {
-      if (beforeData.method) method = beforeData.method.toUpperCase() as Method
+      if (beforeData.method) method = beforeData.method.toUpperCase() as MethodUpper
       if (beforeData.url) url = beforeData.url
       if (beforeData.data) data = beforeData.data
       if (beforeData.params) params = beforeData.params
@@ -131,7 +144,7 @@ const requset = async function (
   if (params.requestBeforeFn) {
     const requestBeforeData = params.requestBeforeFn(method, url, data, params)
     if (requestBeforeData) {
-      if (requestBeforeData.method) method = requestBeforeData.method.toUpperCase() as Method
+      if (requestBeforeData.method) method = requestBeforeData.method.toUpperCase() as MethodUpper
       if (requestBeforeData.url) url = requestBeforeData.url
       if (requestBeforeData.data) data = requestBeforeData.data
       if (requestBeforeData.params) params = requestBeforeData.params
@@ -143,9 +156,10 @@ const requset = async function (
 
   // 返回结果初始化
   let res: requestCommonReturn = {
-    status: 500,
+    status: 0,
     data: {},
 
+    url,
     statusText: 'loading',
     params,
     headers: params.headers,
@@ -158,10 +172,8 @@ const requset = async function (
   if (params.requestBeforeMiddleFn) {
     const axiosBeforeData = params.requestBeforeMiddleFn(method, url, data, params)
     if (axiosBeforeData) {
-      if (axiosBeforeData.method) method = axiosBeforeData.method.toUpperCase() as Method
-      if (axiosBeforeData.url) url = axiosBeforeData.url
       if (axiosBeforeData.data) endData = axiosBeforeData.data
-      if (axiosBeforeData.params) params = axiosBeforeData.params
+      if (axiosBeforeData.header) params.headers = axiosBeforeData.header
     }
   }
 
@@ -173,6 +185,7 @@ const requset = async function (
       status: 200,
       data: cacheData,
 
+      url,
       statusText: 'OK',
       params,
       headers: params.headers,
@@ -185,22 +198,38 @@ const requset = async function (
 
   // 如果没有缓存
   if (!loadingData && !cacheData) {
+    let dataUrl = url
+
+    const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method) > -1
+
     // 随机生成rid，涉及验签参数需前置
-    if (['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method) > -1 && params.rid) {
+    if (params.rid) {
       endData[typeof params.ridKey === 'string' ? params.ridKey : '_rid'] = params.getRidFn ? await params.getRidFn() : getRid()
     }
+    if (isGetLike) {
+      dataUrl += '?'
+      for (const key in endData) {
+        dataUrl += key + '=' + endData[key] + '&'
+      }
+      dataUrl = dataUrl.slice(0, -1)
+    }
 
-    // res = await (fetch.hasFetch() ? fetch(method, url, endData, params) : xhr(method, url, endData, params))
-    res = fetch.hasFetch() ? await fetch(method, url, endData, params) : res
+    params.headers = {
+      Accept: 'application/json, text/plain, */*',
+      ...params.headers,
+    }
+    if (!isGetLike) {
+      params.headers = {
+        'Content-Type': 'application/json',
+        ...params.headers,
+      }
+    }
+
+    res = await (fetch.hasFetch() ? fetch(method, isGetLike, url, dataUrl, endData, params) : xhr(method, isGetLike, url, dataUrl, endData, params))
 
     // 请求后第一次回调 // 加密，验签
     if (params.dataAfterMiddleFn) {
       res.data = await params.dataAfterMiddleFn(res.data)
-    }
-
-    // 处理重复结构数据
-    if (params.structureDuplication && res.data.data && Object.keys(res.data).join(',') === Object.keys(res.data.data).join(',')) {
-      res.data = res.data.data
     }
   }
 
@@ -216,20 +245,21 @@ const requset = async function (
   // 如果没有缓存
   if (!cacheData) {
     // 检查code 并提示
-    const CodeCheck = noLogin ? false : checkReturnCode(res, <Params>params)
+    const CodeCheck = noLogin ? false : checkReturnCode(res, params)
 
     // 如果开启了缓存
-    if (cacheName && params.isCache && CodeCheck) {
+    if (res.status === 200 && cacheName && params.isCache && CodeCheck) {
+      const data = res.data
       // 如果数据有效
-      if (res.data !== null && res.data !== undefined && !(Array.isArray(res.data) && res.data.length === 0)) {
-        setCache(cacheName, DB, params, urlStart, endData, res.data)
+      if (data !== null && data !== undefined && !(Array.isArray(data) && data.length === 0)) {
+        setCache(cacheName, DB, params, urlStart, endData, data)
       }
     }
   }
 
   // 请求后回调
   if (params.requestAfterFn) {
-    const data = params.requestAfterFn('success', res.data)
+    const data = params.requestAfterFn(res.data)
     if (data) {
       res.requestData = res.data
       res.data = data
@@ -249,8 +279,8 @@ const requset = async function (
 
 // 设置请求默认值
 requset.create = function (params: Params) {
-  return function (methodStart: Method = 'post', urlStart: string, dataStart?: RequestData, paramsStart?: Params) {
-    return requset(methodStart, urlStart, dataStart, {
+  return function (methodStart: Method, urlStart: string, paramsStart?: Params) {
+    return requset(methodStart, urlStart, {
       ...params,
       ...paramsStart,
       // 设置请求头

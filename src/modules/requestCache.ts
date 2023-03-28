@@ -1,6 +1,6 @@
 import type { Method, RequestData, Params } from '../index'
 
-import IndexedDB from 'yhl-utils/lib/indexedDB/indexedDB'
+import { IndexedDB } from 'yhl-utils'
 import MD5 from 'blueimp-md5'
 
 interface EndCacheData {
@@ -10,16 +10,14 @@ interface EndCacheData {
 }
 
 const CacheNameDBName = '_RequestCache'
-IndexedDB.initConfig({
-  RequestCache: {
-    keyPath: 'cacheName',
-    keys: {
-      cacheName: { unique: true },
-      params: { unique: false },
-      data: { unique: false },
-      time: { unique: false },
-      url: { unique: false },
-    },
+IndexedDB.initConfig('RequestCache', {
+  keyPath: 'cacheName',
+  keys: {
+    cacheName: { unique: true },
+    params: { unique: false },
+    data: { unique: false },
+    time: { unique: false },
+    url: { unique: false },
   },
 })
 
@@ -88,7 +86,6 @@ export async function getCache(method: Method, url: string, endData: RequestData
   }
 
   endCacheData.cacheData = cacheData.data
-
   return endCacheData
 }
 
@@ -101,7 +98,7 @@ export async function setCache(cacheName: string, DB: EndCacheData['DB'], params
       data: resData,
       time: +new Date(),
     }
-    delete data.data._rid
+    delete data.params._rid
 
     if (DB) {
       const DBdata = { ...data, cacheName }

@@ -1,7 +1,7 @@
-import type { RequestData, Params } from '../index'
+import type { RequestData, Params, MethodUpper } from '../index'
 
 // 设置参数
-export default function setBaseData(params: Params, dataStart: RequestData = {}): RequestData {
+export default function setBaseData(method: MethodUpper, url: string, params: Params, dataStart: RequestData = {}): RequestData {
   let data: RequestData = {}
 
   // 处理基础数据
@@ -9,7 +9,7 @@ export default function setBaseData(params: Params, dataStart: RequestData = {})
 
   // 处理基础数据方法
   if (params.baseDataFn) {
-    const baseDataFnData = params.baseDataFn()
+    const baseDataFnData = params.baseDataFn(method, url)
     if (baseDataFnData) data = { ...data, ...baseDataFnData }
   }
 

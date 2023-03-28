@@ -61,9 +61,9 @@ export default async function getLoadingMap(
       500
     )
 
-    const res = await $again.start()
-    if (res.code === 200 && res.data.type === 'end' && res.data.data) {
-      return { loadingData: res.data.data }
+    const again = await $again.start()
+    if (again.code === 200 && again.data.type === 'end' && again.data.data) {
+      return { loadingData: again.data.data }
     }
   }
 

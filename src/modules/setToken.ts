@@ -17,9 +17,8 @@ export default async function setToken(
     if (token) {
       // 是否添加请求头
       if (params.tokenHeader) {
-        if (params.headers) {
-          params.headers[params.tokenKey] = token
-        }
+        if (!params.headers) params.headers = {}
+        params.headers[params.tokenKey] = token
       } else {
         data[params.tokenKey] = token
       }

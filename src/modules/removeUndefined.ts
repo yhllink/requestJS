@@ -2,7 +2,7 @@ import type { RequestData } from '../index'
 
 // 删除对象中的Undefined
 export default function removeUndefined(data: RequestData): RequestData {
-  const datas: { [key: string]: any } = {}
+  const datas: RequestData = {}
 
   for (const key in data) {
     // 是否是 undefined

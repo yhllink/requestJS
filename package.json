@@ -1,6 +1,6 @@
 {
   "name": "yhl-request",
-  "version": "0.0.",
+  "version": "0.0.1",
   "description": "",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -31,6 +31,6 @@
   },
   "dependencies": {
     "blueimp-md5": "^2.19.0",
-    "yhl-utils": "^0.0.3"
+    "yhl-utils": "^0.1.7"
   }
 }
