@@ -1,33 +1,34 @@
-import type { requestCommonReturn, Params } from '../index'
+import type { Params } from '../index'
 
 import { Again } from 'yhl-utils'
 
 interface loadingDataType {
   type: 'loading' | 'end'
-  data: requestCommonReturn
+  data: any
   time: any
 }
-const LoadingMap = new Map()
+
+const LoadingMap = new Map<string, loadingDataType>()
 
 // 防抖
 export default async function getLoadingMap(
   cacheName?: string,
   params?: Params
 ): Promise<{
-  loadingData?: loadingDataType['data']
-  loadEndFn?: any
+  loadingData?: any
+  loadEndFn?: (res: any) => void
 }> {
-  if (!cacheName || params?.debounce !== true) return {}
+  if (!cacheName || params?._debounce !== true) return {}
 
   const loadEndFn = (res: any) => {
-    const loadingData: loadingDataType | undefined = LoadingMap.get(cacheName)
+    const loadingData = LoadingMap.get(cacheName)
     if (loadingData) {
       loadingData.type = 'end'
       loadingData.data = res
 
       loadingData.time = setTimeout(() => {
         LoadingMap.delete(cacheName)
-      }, params?.debounceTime || 3000)
+      }, params?._debounceTime || 500)
       LoadingMap.set(cacheName, loadingData)
     }
   }
@@ -48,7 +49,7 @@ export default async function getLoadingMap(
     const $again = new Again(
       () => {
         return new Promise((resolve, reject) => {
-          const loadingData: loadingDataType | undefined = LoadingMap.get(cacheName)
+          const loadingData = LoadingMap.get(cacheName)
 
           if (loadingData?.type === 'end') {
             return resolve(loadingData)
@@ -61,9 +62,9 @@ export default async function getLoadingMap(
       500
     )
 
-    const again = await $again.start()
-    if (again.code === 200 && again.data.type === 'end' && again.data.data) {
-      return { loadingData: again.data.data }
+    const res = await $again.start()
+    if (res.code === 200 && res.data.type === 'end' && res.data.data) {
+      return { loadingData: res.data.data }
     }
   }
 

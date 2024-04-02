@@ -1,291 +1,361 @@
-export type Method = 'get' | 'GET' | 'delete' | 'DELETE' | 'head' | 'HEAD' | 'options' | 'OPTIONS' | 'post' | 'POST' | 'put' | 'PUT'
-export type MethodUpper = 'GET' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT'
+import axios, { Method as MethodType, AxiosRequestConfig as AxiosRequestConfigType, CancelTokenSource, AxiosResponse, AxiosError } from 'axios'
+import { JSONParse, ifType, prefixInteger } from 'yhl-utils'
 
-export type RequestData = { [key: string]: any }
+import getCache from './utils/getCache'
+import getLoadingMap from './utils/getLoadingMap'
 
-export type requestCommonReturn = {
-  status: number
-  data: any
+const CancelToken = axios.CancelToken
 
-  url: string
-  statusText: 'loading' | 'error' | 'OK'
-  params: Params
-  headers: Params['headers']
-  request: any
-  requestData?: any
-}
+const AXIOS = axios.create({
+  transformResponse: [
+    function (data) {
+      return JSONParse(data) || data
+    },
+  ],
+})
 
-type AxiosMiddleFunction = (
-  method: MethodUpper,
+type AndPromise<T> = T | Promise<T>
+
+export type AnyObj = { [key: string]: any }
+export type Method = MethodType
+export type AxiosRequestConfig = AxiosRequestConfigType
+
+type RequestMiddleFunction = (
+  method: Method,
   url: string,
-  data: RequestData,
-  params: Params
-) => { method?: Method; url?: string; data?: RequestData; params?: Params }
+  data: AnyObj,
+  params: Params,
+  axiosConfig: AxiosRequestConfig
+) => AndPromise<{
+  method?: Method
+  url?: string
+  data?: AnyObj
+  params?: Params
+  axiosConfig?: AxiosRequestConfig
+}>
 
-type AxiosMiddleEndFunction = (method: MethodUpper, url: string, data: RequestData, params: Params) => { data?: RequestData; header: Params['headers'] }
-
-export interface Params {
-  baseURL?: false | string // 根路径
-  baseAPI?: false | string // 根api路径
-
-  timeout?: number
-  headers?: false | { [key: string]: string } // 请求头
-
-  rid?: boolean // 请求随机数时间戳
-  ridKey?: string // 请求随机数发送字段 默认 _rid
-  getRidFn?: () => string | Promise<string> // 自定义生成随机数规则
-
-  noReturn?: boolean // 不需要返回结果
-
-  isCache?: false | number // 缓存时间 //! 依赖于 codeKey & successCode
-  isCacheFn?: false | ((res: any) => void | boolean | Promise<void | boolean>) // 判断是否需要缓存 //! 必须设置 isCache
-  openIndexedDB?: boolean // 是否开启indexDB缓存
-  isLoginCache?: boolean // 是否登录缓存
-  getLoginCacheUniqueFn?: false | (() => string | Promise<string>) // 获取登录缓存唯一标识
-
-  debounce?: boolean // 是否开启防抖
-  debounceTime?: number // 防抖数据缓存时间 // 默认 3000
-
-  baseData?: false | object // 基础数据
-  baseDataFn?: false | ((Method: MethodUpper, url: string) => undefined | RequestData) // 基础数据回调
-
-  delUndefined?: boolean // 删除参数中值为undefined的参数
-  responseAll?: boolean // 是否返回全部数据
-
-  tokenKey?: false | string // token添加时的key
-  tokenFn?: false | (() => string | void | Promise<string | void>) // token获取方法支持async
-  tokenHeader?: boolean // token是否添加在header头
-  requiredToken?: boolean // 是否必传token（会跳转登录页 //! 依赖于 toLoginFn
-  requiredTokenClose?: boolean // 是否必传 token 并关闭 （会跳转登录页并关闭页面 //! 依赖于 requiredToken & toLoginFn
-  checkTokenFailReturn?: boolean // 检查token失败 是否直接返回失败 //! 依赖于 codeKey & successCode & failToastKey
-
-  responseLogin?: boolean // 接口返回 登录是否跳转
-  responseLoginKey?: false | string // 接口返回登录key
-  responseLoginVal?: false | number[] // 接口返回登录val
-  responseLoginClose?: boolean // 接口返回登录并关闭 （会跳转登录页并关闭页面 //! 依赖于 responseLogin & responseLoginKey & responseLoginVal
-
-  toLoginFn?: false | Function // 跳转登录页面方法 支持async
-
-  codeKey?: false | string[] // 状态码key
-  successCode?: false | (number | string)[] // 成功状态码200
-
-  toastFn?: (type: 'success' | 'fail', msg: string) => any // 显示toast方法
-
-  successToast?: boolean // 成功提示 //! 依赖于 toastFn
-  successToastKey?: false | string[] // 成功提示语key
-  failToast?: boolean // 失败提示 //! 依赖于 toastFn
-  failToastKey?: false | string[] // 失败提示语 key
-
-  dataBeforeFn?: false | AxiosMiddleFunction // 数据处理前回调
-  requestBeforeFn?: false | AxiosMiddleFunction // 请求前回调
-  requestBeforeMiddleFn?: false | AxiosMiddleEndFunction // 请求前最后一次回调 // 加密，验签
-
-  dataAfterMiddleFn?: false | ((data: any) => any | Promise<any>) // 请求后第一次回调 // 解密，验签
-  requestAfterFn?: false | ((data: any) => undefined | any) // 请求后回调
+// 获得中断请求的 source
+export const getSource = function () {
+  return CancelToken.source()
 }
 
-import checkReturnCode from './modules/checkReturnCode'
-import checkReturnLogin from './modules/checkReturnLogin'
-import { getCache, setCache } from './modules/requestCache'
-import getLoadingMap from './modules/getLoadingMap'
-import getRid from './modules/getRid'
-import removeUndefined from './modules/removeUndefined'
-import setBase from './modules/setBase'
-import setBaseData from './modules/setBaseData'
-import setHeaders from './modules/setHeader'
-import setToken from './modules/setToken'
-import fetch from './modules/fetch'
-import xhr from './modules/xhr'
+type ParamsType = {
+  baseURL?: string // 根路径
+  timeout?: number // 超时时间   默认3s
+  headers?: false | AxiosRequestConfig['headers'] // 请求头
 
-const requset = function (
-  methodStart: Method,
-  urlStart: string,
-  paramsStart?: Params
-): (dataStart?: RequestData) => Promise<requestCommonReturn | requestCommonReturn['data'] | void> {
-  return function (dataStart?: RequestData) {
-    return requset.run(methodStart, urlStart, dataStart, paramsStart)
-  }
+  _source?: CancelTokenSource // 中断请求的 source
+
+  _baseData?: false | AnyObj // 基础数据 //! 仅参数为Object生效
+  __getBaseDataFn?: false | ((method: Method, url: string) => AnyObj) // 基础数据回调 //! 优先于_baseData   仅参数为Object生效
+
+  _removeUndefined?: boolean // 删除参数中值为undefined的参数
+
+  // 设置token方法支持async
+  __loginFn?:
+    | false
+    | ((
+        method: Method,
+        url: string,
+        data: AnyObj,
+        params: Params,
+        axiosConfig: AxiosRequestConfig
+      ) => AndPromise<{
+        data?: AnyObj // 登录参数
+        headers?: AxiosRequestConfig['headers'] // 登录header
+        // loginToken?: string // 登录标识token  切换用户后，清除其他用户缓存
+      }>)
+
+  __dataAfterFn?: false | RequestMiddleFunction // 数据处理后回调
+
+  _isCache?: false | number // 缓存时间 //! 必须设置 __requestReturnCodeCheckFn  并且校验结果为 true
+  _cacheDateStore?: ('indexedDB' | 'sessionStorage' | 'localStorage')[] // 缓存存储位置 默认['indexedDB','sessionStorage']
+  _isCacheFn?: false | ((res: any) => Promise<void | boolean>) // 判断是否需要缓存 //! 必须设置 _isCache 默认缓存
+
+  _debounce?: boolean // 是否开启防抖
+  _debounceTime?: number // 防抖时间  默认 500ms
+
+  _rid?: boolean // 请求随机数时间戳
+
+  _isUpLoad?: boolean // post请求表单提交
+
+  _responseAll?: boolean // 是否返回全部数据
+
+  __requestBeforeFn?: false | RequestMiddleFunction // 请求前回调
+
+  __requestBeforeMiddleFn?: false | RequestMiddleFunction // 请求前最后一次回调 // 加密，验签
+
+  _noReturn?: boolean // 不需要返回结果
+
+  __failHttpToastFn?: false | ((error: AxiosError) => void) // http请求失败提示
+  __failToastFn?: false | ((res: any) => void) // 请求失败提示
+
+  __requestAfterMiddleFn?: false | ((res: any) => any) // 请求后第一次回调-返回数据将作为新的数据向后传递 // 解密，验签
+
+  _responseLogin?: boolean // 接口返回 登录是否跳转
+  __checkLoginFn?: false | ((res: any) => AndPromise<{ login?: boolean; close?: boolean }>) // 接口返回检查是否是登录态
+  __toLoginToast?: false | ((close: boolean) => void) // 当前需要登录态 跳转登录页提示
+  __toLoginFn?: false | ((close: boolean) => void) // 当前需要登录态 跳转登录页方法
+
+  __requestReturnCodeCheckFn?: false | ((res: any) => AndPromise<boolean>) // 请求后参数校验，可做相关提示   需要返回检查结果
+
+  __requestAfterFn?: false | ((type: 'success' | 'fail', data: any) => AndPromise<any>) // 请求后回调
+}
+export type Params = AxiosRequestConfig & ParamsType
+
+// 默认配置
+const defaultParams: Params = {
+  baseURL: '',
+  timeout: 3000,
+  headers: {},
+
+  _rid: true, // 请求随机数时间戳
 }
 
-// 请求方法
-requset.run = async function (
-  methodStart: Method,
-  urlStart: string,
-  dataStart?: RequestData,
-  paramsStart?: Params
-): Promise<requestCommonReturn | requestCommonReturn['data'] | void> {
-  // 获取基础参数
-  let { method, url, params } = setBase(methodStart, urlStart, paramsStart)
+/**
+ * 请求方法
+ * @param method 请求方式 POST GET
+ * @param url 请求url
+ * @param data 请求的数据
+ * @param params 请求配置项<Params>
+ * @returns
+ */
+const request = async function (method: Method, url: string, data: AnyObj = {}, params: Params = {}, axiosConfig: AxiosRequestConfig = {}) {
+  // 合并配置
+  ;[params, axiosConfig] = (() => {
+    const paramsProps = { ...defaultParams, ...params }
 
-  // 请求参数
-  let data: RequestData = {}
+    const endParams: Params = {}
+    const endAxiosConfig: AxiosRequestConfig = axiosConfig
 
-  // 获取请求参数
-  data = setBaseData(method, url, params, dataStart)
+    for (const key in paramsProps) {
+      if (key[0] !== '_') {
+        // @ts-ignore
+        endAxiosConfig[key] = paramsProps[key]
+      } else {
+        // @ts-ignore
+        endParams[key] = paramsProps[key]
+      }
+    }
 
-  // 数据处理前回调
-  if (params.dataBeforeFn) {
-    const beforeData = params.dataBeforeFn(method, url, data, params)
-    if (beforeData) {
-      if (beforeData.method) method = beforeData.method.toUpperCase() as MethodUpper
-      if (beforeData.url) url = beforeData.url
-      if (beforeData.data) data = beforeData.data
-      if (beforeData.params) params = beforeData.params
+    return [endParams, endAxiosConfig]
+  })()
+
+  // 合并请求参数
+  data = (() => {
+    if (typeof data !== 'object' || !ifType('Object', data)) return data
+
+    // 处理基础数据方法
+    if (params.__getBaseDataFn) {
+      const baseDataFn = params.__getBaseDataFn(method, url)
+      if (typeof baseDataFn === 'object' && ifType('Object', baseDataFn)) {
+        data = { ...baseDataFn, ...data }
+      }
+    }
+
+    // 处理基础数据
+    else if (params._baseData && typeof params._baseData === 'object' && ifType('Object', params._baseData)) {
+      data = { ...params._baseData, ...data }
+    }
+
+    return data
+  })()
+
+  // 设置token方法支持async
+  if (params.__loginFn) {
+    const loginData = await params.__loginFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+    if (loginData) {
+      loginData.data && (data = { ...data, ...loginData.data })
+      loginData.headers && (axiosConfig.headers = { ...axiosConfig.headers, ...loginData.headers })
     }
   }
 
-  // 设置token 并判断是否必须 是否需要跳转
-  const tokenData = await setToken(params, data)
-  if (tokenData.noLoginReturn) return {}
-  if (tokenData.data) data = tokenData.data
-  if (tokenData.headers) params.headers = tokenData.headers
-
-  // 请求前回调
-  if (params.requestBeforeFn) {
-    const requestBeforeData = params.requestBeforeFn(method, url, data, params)
-    if (requestBeforeData) {
-      if (requestBeforeData.method) method = requestBeforeData.method.toUpperCase() as MethodUpper
-      if (requestBeforeData.url) url = requestBeforeData.url
-      if (requestBeforeData.data) data = requestBeforeData.data
-      if (requestBeforeData.params) params = requestBeforeData.params
+  // 数据处理后回调
+  if (params.__dataAfterFn) {
+    const dataAfterFnData = await params.__dataAfterFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+    if (dataAfterFnData) {
+      dataAfterFnData.method && (method = dataAfterFnData.method)
+      dataAfterFnData.url && (url = dataAfterFnData.url)
+      dataAfterFnData.data && (data = dataAfterFnData.data)
+      dataAfterFnData.params && (params = dataAfterFnData.params)
+      dataAfterFnData.axiosConfig && (axiosConfig = dataAfterFnData.axiosConfig)
     }
   }
 
   // 剔除undefined
-  if (params.delUndefined) data = removeUndefined(data)
+  if (params._removeUndefined) {
+    data = (() => {
+      if (typeof data !== 'object' || !ifType('Object', data)) return data
+
+      const datas: AnyObj = {}
+
+      for (const key in data) {
+        // 是否是 undefined
+        if (data[key] !== undefined) {
+          datas[key] = data[key]
+        }
+      }
+
+      return datas
+    })()
+  }
 
   // 返回结果初始化
-  let res: requestCommonReturn = {
-    status: 0,
+  let res: AxiosResponse<any, AnyObj> & { requestData: AxiosResponse['data'] } = {
     data: {},
-
-    url,
-    statusText: 'loading',
-    params,
-    headers: params.headers,
-    request: null,
+    status: 0,
+    statusText: '',
+    headers: {},
+    // @ts-ignore
+    config: {},
   }
   // 最后的请求参数
   let endData = data
 
-  // 请求前最后一次回调 // 加密，验签
-  if (params.requestBeforeMiddleFn) {
-    const axiosBeforeData = params.requestBeforeMiddleFn(method, url, data, params)
-    if (axiosBeforeData) {
-      if (axiosBeforeData.data) endData = axiosBeforeData.data
-      if (axiosBeforeData.header) params.headers = axiosBeforeData.header
-    }
-  }
+  // 获取缓存数据
+  const { cacheName, cacheData, setCache } = await getCache(method, url, endData, params, axiosConfig)
+  if (cacheData) res = cacheData
 
-  const { DB, cacheName, cacheData } = await getCache(method, url, endData, params)
-
-  // 如果缓存数据存在
-  if (cacheData) {
-    res = {
-      status: 200,
-      data: cacheData,
-
-      url,
-      statusText: 'OK',
-      params,
-      headers: params.headers,
-      request: null,
-    }
-  }
-
+  // 检查防抖
   const { loadingData, loadEndFn } = await getLoadingMap(cacheName, params)
   if (loadingData) res = loadingData
 
-  // 如果没有缓存
+  const source = params._source
+  if (source) axiosConfig.cancelToken = source?.token
+
+  // 如果没有缓存 //! 发送请求
   if (!loadingData && !cacheData) {
-    let dataUrl = url
+    try {
+      const _rid = params._rid
+        ? (() => {
+            const date = new Date()
+            // 时分秒
+            const HH = prefixInteger(date.getHours(), 2)
+            const mm = prefixInteger(date.getMinutes(), 2)
+            const ss = prefixInteger(date.getSeconds(), 2)
 
-    const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method) > -1
+            return parseInt(HH + mm + ss).toString(32)
+          })()
+        : undefined
 
-    // 随机生成rid，涉及验签参数需前置
-    if (params.rid) {
-      endData[typeof params.ridKey === 'string' ? params.ridKey : '_rid'] = params.getRidFn ? await params.getRidFn() : getRid()
-    }
-    if (isGetLike) {
-      dataUrl += '?'
-      for (const key in endData) {
-        dataUrl += key + '=' + endData[key] + '&'
+      const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method.toUpperCase()) > -1
+
+      if (isGetLike) {
+        res = await AXIOS({
+          ...axiosConfig,
+          method,
+          url,
+          params: { ...(axiosConfig.params || {}), ...endData, _rid },
+        })
+      } else {
+        if (params._isUpLoad) {
+          if (typeof axiosConfig.headers !== 'object') {
+            axiosConfig.headers = {}
+          }
+
+          axiosConfig.headers['Content-Type'] = 'multipart/form-data; charset=UTF-8'
+          endData = new FormData()
+          for (const key in data) {
+            if (ifType([Object, Array], data[key])) {
+              endData.append(key, new Blob([JSON.stringify(data[key])], { type: 'application/json' }))
+            } else {
+              endData.append(key, data[key])
+            }
+          }
+        }
+
+        res = await AXIOS({ ...axiosConfig, method, url, params: { _rid }, data: endData })
       }
-      dataUrl = dataUrl.slice(0, -1)
-    }
+    } catch (error: any) {
+      // 如果不需要返回结果
+      if (params._noReturn) return
 
-    params.headers = {
-      Accept: 'application/json, text/plain, */*',
-      ...params.headers,
-    }
-    if (!isGetLike) {
-      params.headers = {
-        'Content-Type': 'application/json',
-        ...params.headers,
+      // 请求后回调
+      if (params.__requestAfterFn) {
+        params.__requestAfterFn('fail', error)
       }
-    }
 
-    res = await (fetch.hasFetch() ? fetch(method, isGetLike, url, dataUrl, endData, params) : xhr(method, isGetLike, url, dataUrl, endData, params))
+      params.__failHttpToastFn && params.__failHttpToastFn(error)
 
-    // 请求后第一次回调 // 加密，验签
-    if (params.dataAfterMiddleFn) {
-      res.data = await params.dataAfterMiddleFn(res.data)
+      if (params._source && error.code === 'ERR_CANCELED' && error.name === 'CanceledError' && error.message === 'canceled') {
+        res = { ...res, status: 0, data: false, statusText: 'canceled' }
+      }
+
+      res = { ...res, status: 0, data: false, statusText: error.message }
     }
   }
 
+  // 防抖结果
   if (loadEndFn) loadEndFn(res)
 
-  let noLogin
-  // 如果需要返回结果
-  if (!params.noReturn) {
-    // 检查登录提示
-    noLogin = checkReturnLogin(res, params)
-  }
+  // 如果不需要返回结果
+  if (params._noReturn) return
+
+  // 请求后第一次回调-返回数据将作为新的数据向后传递
+  if (params.__requestAfterMiddleFn) res = params.__requestAfterMiddleFn(res)
+
+  // 检查登录提示
+  const isLogin = await (async () => {
+    const { login: isLogin, close: isClose } = await (async () => {
+      if (!params._responseLogin || !params.__checkLoginFn) return { login: true, close: false }
+      return await params.__checkLoginFn(res)
+    })()
+
+    // 如果设置了登录 判断
+    if (!isLogin && params._responseLogin) {
+      // 如果未登录  登录提示
+      if (params.__toLoginToast) {
+        params.__toLoginToast(!!isClose)
+      }
+
+      // 如果未登录
+      if (params.__toLoginFn) {
+        params.__toLoginFn(!!isClose)
+      }
+
+      return false
+    }
+
+    return isLogin
+  })()
+
+  // 检查返回结果是否正确
+  const resCheck = await (async () => {
+    // 请求后参数校验，可做相关提示
+    if (params.__requestReturnCodeCheckFn) {
+      return await params.__requestReturnCodeCheckFn(res)
+    }
+
+    return true
+  })()
 
   // 如果没有缓存
-  if (!cacheData) {
-    // 检查code 并提示
-    const CodeCheck = noLogin ? false : checkReturnCode(res, params)
-
-    // 如果开启了缓存
-    if (res.status === 200 && cacheName && params.isCache && CodeCheck) {
-      const data = res.data
-      // 如果数据有效
-      if (data !== null && data !== undefined && !(Array.isArray(data) && data.length === 0)) {
-        setCache(cacheName, DB, params, urlStart, endData, data)
+  if (!cacheData && isLogin && resCheck && setCache && cacheName && params._isCache) {
+    await (async () => {
+      if (params._isCacheFn) {
+        const canCache = await params._isCacheFn(res)
+        if (!canCache) return
       }
-    }
+
+      setCache(res)
+    })()
   }
+
+  res.requestData = res.data
 
   // 请求后回调
-  if (params.requestAfterFn) {
-    const data = params.requestAfterFn(res.data)
-    if (data) {
-      res.requestData = res.data
-      res.data = data
-    }
+  if (params.__requestAfterFn) {
+    const data = await params.__requestAfterFn('success', res.data)
+    if (data !== undefined) res.data = data
   }
-
-  // 如果不需要返回结果
-  if (params.noReturn) return
 
   // 是否设置了 返回全部结果
-  if (params.responseAll) {
-    return res
-  } else {
-    return res.data
-  }
+  return params._responseAll ? res : res.data
 }
+export default request
 
-// 设置请求默认值
-requset.create = function (params: Params) {
-  return function (methodStart: Method, urlStart: string, paramsStart?: Params) {
-    return requset(methodStart, urlStart, {
-      ...params,
-      ...paramsStart,
-      // 设置请求头
-      headers: setHeaders(params, paramsStart),
-    })
+export const create = function (defaultParams: Params, defaultAxiosConfig: AxiosRequestConfig = {}) {
+  return function (method: Method, url: string, data: AnyObj, params: Params = {}, axiosConfig: AxiosRequestConfig = {}) {
+    return request(method, url, data, { ...defaultParams, ...params }, { ...defaultAxiosConfig, ...axiosConfig })
   }
 }
-export default requset
