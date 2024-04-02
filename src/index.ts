@@ -52,7 +52,7 @@ type ParamsType = {
   _removeUndefined?: boolean // 删除参数中值为undefined的参数
 
   // 设置token方法支持async
-  __loginFn?:
+  __getTokenFn?:
     | false
     | ((
         method: Method,
@@ -66,7 +66,9 @@ type ParamsType = {
         // loginToken?: string // 登录标识token  切换用户后，清除其他用户缓存
       }>)
 
-  __dataAfterFn?: false | RequestMiddleFunction // 数据处理后回调
+  __requestBeforeFn?: false | RequestMiddleFunction // 请求前回调
+
+  __requestBeforeMiddleFn?: false | RequestMiddleFunction // 请求前最后一次回调 // 加密，验签
 
   _isCache?: false | number // 缓存时间 //! 必须设置 __requestReturnCodeCheckFn  并且校验结果为 true
   _cacheDateStore?: ('indexedDB' | 'sessionStorage' | 'localStorage')[] // 缓存存储位置 默认['indexedDB','sessionStorage']
@@ -81,13 +83,9 @@ type ParamsType = {
 
   _responseAll?: boolean // 是否返回全部数据
 
-  __requestBeforeFn?: false | RequestMiddleFunction // 请求前回调
-
-  __requestBeforeMiddleFn?: false | RequestMiddleFunction // 请求前最后一次回调 // 加密，验签
-
   _noReturn?: boolean // 不需要返回结果
 
-  __failHttpToastFn?: false | ((error: AxiosError) => void) // http请求失败提示
+  __failHttpToastFn?: false | ((error: AxiosError, method: Method, url: string, data?: AnyObj, params?: Params, axiosConfig?: AxiosRequestConfig) => void) // http请求失败提示
   __failToastFn?: false | ((res: any) => void) // 请求失败提示
 
   __requestAfterMiddleFn?: false | ((res: any) => any) // 请求后第一次回调-返回数据将作为新的数据向后传递 // 解密，验签
@@ -162,17 +160,17 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
   })()
 
   // 设置token方法支持async
-  if (params.__loginFn) {
-    const loginData = await params.__loginFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+  if (params.__getTokenFn) {
+    const loginData = await params.__getTokenFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
     if (loginData) {
       loginData.data && (data = { ...data, ...loginData.data })
       loginData.headers && (axiosConfig.headers = { ...axiosConfig.headers, ...loginData.headers })
     }
   }
 
-  // 数据处理后回调
-  if (params.__dataAfterFn) {
-    const dataAfterFnData = await params.__dataAfterFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+  // 请求前回调
+  if (params.__requestBeforeFn) {
+    const dataAfterFnData = await params.__requestBeforeFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
     if (dataAfterFnData) {
       dataAfterFnData.method && (method = dataAfterFnData.method)
       dataAfterFnData.url && (url = dataAfterFnData.url)
@@ -209,11 +207,9 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
     // @ts-ignore
     config: {},
   }
-  // 最后的请求参数
-  let endData = data
 
   // 获取缓存数据
-  const { cacheName, cacheData, setCache } = await getCache(method, url, endData, params, axiosConfig)
+  const { cacheName, cacheData, setCache } = await getCache(method, url, data, params, axiosConfig)
   if (cacheData) res = cacheData
 
   // 检查防抖
@@ -225,6 +221,21 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
 
   // 如果没有缓存 //! 发送请求
   if (!loadingData && !cacheData) {
+    // 最后的请求参数
+    let endData = data
+
+    // 请求前最后一次回调 // 加密，验签
+    if (params.__requestBeforeMiddleFn) {
+      const dataAfterFnData = await params.__requestBeforeMiddleFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+      if (dataAfterFnData) {
+        dataAfterFnData.method && (method = dataAfterFnData.method)
+        dataAfterFnData.url && (url = dataAfterFnData.url)
+        dataAfterFnData.data && (endData = dataAfterFnData.data)
+        dataAfterFnData.params && (params = dataAfterFnData.params)
+        dataAfterFnData.axiosConfig && (axiosConfig = dataAfterFnData.axiosConfig)
+      }
+    }
+
     try {
       const _rid = params._rid
         ? (() => {
@@ -275,7 +286,7 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
         params.__requestAfterFn('fail', error)
       }
 
-      params.__failHttpToastFn && params.__failHttpToastFn(error)
+      params.__failHttpToastFn && params.__failHttpToastFn(error, method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
 
       if (params._source && error.code === 'ERR_CANCELED' && error.name === 'CanceledError' && error.message === 'canceled') {
         res = { ...res, status: 0, data: false, statusText: 'canceled' }
