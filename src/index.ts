@@ -159,24 +159,24 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
     return data
   })()
 
-  // 设置token方法支持async
-  if (params.__getTokenFn) {
-    const loginData = await params.__getTokenFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
-    if (loginData) {
-      loginData.data && (data = { ...data, ...loginData.data })
-      loginData.headers && (axiosConfig.headers = { ...axiosConfig.headers, ...loginData.headers })
-    }
-  }
-
   // 请求前回调
   if (params.__requestBeforeFn) {
-    const dataAfterFnData = await params.__requestBeforeFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+    const dataAfterFnData = await params.__requestBeforeFn(method, url, data, params, axiosConfig)
     if (dataAfterFnData) {
       dataAfterFnData.method && (method = dataAfterFnData.method)
       dataAfterFnData.url && (url = dataAfterFnData.url)
       dataAfterFnData.data && (data = dataAfterFnData.data)
       dataAfterFnData.params && (params = dataAfterFnData.params)
       dataAfterFnData.axiosConfig && (axiosConfig = dataAfterFnData.axiosConfig)
+    }
+  }
+
+  // 设置token方法支持async
+  if (params.__getTokenFn) {
+    const loginData = await params.__getTokenFn(method, url, data, params, axiosConfig)
+    if (loginData) {
+      loginData.data && (data = { ...data, ...loginData.data })
+      loginData.headers && (axiosConfig.headers = { ...axiosConfig.headers, ...loginData.headers })
     }
   }
 
@@ -226,7 +226,7 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
 
     // 请求前最后一次回调 // 加密，验签
     if (params.__requestBeforeMiddleFn) {
-      const dataAfterFnData = await params.__requestBeforeMiddleFn(method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+      const dataAfterFnData = await params.__requestBeforeMiddleFn(method, url, data, params, axiosConfig)
       if (dataAfterFnData) {
         dataAfterFnData.method && (method = dataAfterFnData.method)
         dataAfterFnData.url && (url = dataAfterFnData.url)
@@ -286,7 +286,7 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
         params.__requestAfterFn('fail', error)
       }
 
-      params.__failHttpToastFn && params.__failHttpToastFn(error, method, url, Object.freeze(data), Object.freeze(params), Object.freeze(axiosConfig))
+      params.__failHttpToastFn && params.__failHttpToastFn(error, method, url, data, params, axiosConfig)
 
       if (params._source && error.code === 'ERR_CANCELED' && error.name === 'CanceledError' && error.message === 'canceled') {
         res = { ...res, status: 0, data: false, statusText: 'canceled' }

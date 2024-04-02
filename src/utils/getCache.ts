@@ -62,16 +62,22 @@ export default async function getCache(method: Method, url: string, data: any, p
   })()
 
   const toCache = function (res: any) {
-    const cacheData = {
+    const cacheData: {
+      cacheName?: string
+      url: string
+      params: any
+      data: any
+      time: number
+    } = {
+      cacheName: undefined,
       url,
-      params: { ...data },
-      data: res,
+      params: data,
+      data: JSON.parse(JSON.stringify(res)),
       time: +new Date(),
     }
 
     for (let i = 0; i < DateStore.length; i++) {
       if (DateStore[i] === 'indexedDB' && DB) {
-        // @ts-ignore
         cacheData.cacheName = cacheName
         DB.add(cacheData)
         break
