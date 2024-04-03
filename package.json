@@ -1,6 +1,6 @@
 {
   "name": "yhl-request",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "yaohanlin",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -33,6 +33,6 @@
   "peerDependencies": {
     "axios": "^1.0.0",
     "blueimp-md5": "^2.0.0",
-    "yhl-utils": "^0.1.19"
+    "yhl-utils": "^0.1.20"
   }
 }
