@@ -5,6 +5,7 @@ import { Again } from 'yhl-utils'
 interface loadingDataType {
   type: 'loading' | 'end'
   data: any
+  dataType?: 'success' | 'fail'
   time: any
 }
 
@@ -15,22 +16,25 @@ export default async function getLoadingMap(
   cacheName?: string,
   params?: Params
 ): Promise<{
+  loadingDataType?: loadingDataType['dataType']
   loadingData?: any
-  loadEndFn?: (res: any) => void
+  loadEndFn?: (type: loadingDataType['dataType'], res?: any) => void
 }> {
   if (!cacheName || params?._debounce !== true) return {}
 
-  const loadEndFn = (res: any) => {
+  const loadEndFn = (type: loadingDataType['dataType'], res: any) => {
     const loadingData = LoadingMap.get(cacheName)
-    if (loadingData) {
-      loadingData.type = 'end'
-      loadingData.data = res
+    if (!loadingData) return
 
-      loadingData.time = setTimeout(() => {
-        LoadingMap.delete(cacheName)
-      }, params?._debounceTime || 500)
-      LoadingMap.set(cacheName, loadingData)
-    }
+    loadingData.type = 'end'
+    loadingData.data = res
+    loadingData.dataType = type
+
+    loadingData.time = setTimeout(() => {
+      LoadingMap.delete(cacheName)
+    }, params?._debounceTime || 500)
+
+    LoadingMap.set(cacheName, loadingData)
   }
 
   const loadingData: loadingDataType | undefined = LoadingMap.get(cacheName)
@@ -40,7 +44,7 @@ export default async function getLoadingMap(
   }
 
   if (loadingData.type === 'end') {
-    return { loadingData: loadingData.data }
+    return { loadingDataType: loadingData.dataType, loadingData: loadingData.data }
   }
 
   if (loadingData.type === 'loading') {
@@ -62,9 +66,13 @@ export default async function getLoadingMap(
       500
     )
 
-    const res = await $again.start()
-    if (res.code === 200 && res.data.type === 'end' && res.data.data) {
-      return { loadingData: res.data.data }
+    const {
+      code,
+      data: { type, dataType, data },
+    } = await $again.start()
+
+    if (code === 200 && type === 'end' && data) {
+      return { loadingDataType: dataType, loadingData: data }
     }
   }
 

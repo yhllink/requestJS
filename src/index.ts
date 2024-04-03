@@ -241,17 +241,28 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
 
   // 获取缓存数据
   const { cacheName, cacheData, setCache } = await getCache(method, url, data, params, axiosConfig)
+  // 如果有缓存
   if (cacheData) res = cacheData
 
   // 检查防抖
-  const { loadingData, loadEndFn } = await getLoadingMap(cacheName, params)
-  if (loadingData) res = loadingData
+  const { loadingDataType, loadingData, loadEndFn } = await getLoadingMap(cacheName, params)
+  // 如果处于防抖中
+  if (loadingDataType && loadingData) {
+    // 如果不需要返回结果
+    if (params._noReturn) return
 
-  const source = params._source
-  if (source) axiosConfig.cancelToken = source?.token
+    if (loadingDataType === 'fail') {
+      return Promise.reject(loadingData)
+    }
+
+    res = loadingData
+  }
 
   // 如果没有缓存 //! 发送请求
-  if (!loadingData && !cacheData) {
+  if (!loadingDataType && !loadingData && !cacheData) {
+    const source = params._source
+    if (source) axiosConfig.cancelToken = source?.token
+
     // 最后的请求参数
     let endData = data
 
@@ -310,13 +321,13 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
       }
 
       // 防抖结果
-      if (loadEndFn) loadEndFn(res)
+      if (loadEndFn) loadEndFn('success', res)
     } catch (error: any) {
-      // 防抖结果
-      if (loadEndFn) loadEndFn(res)
-
-      // 如果不需要返回结果
-      if (params._noReturn) return
+      if (params._source && error.code === 'ERR_CANCELED' && error.name === 'CanceledError' && error.message === 'canceled') {
+        res = { ...res, statusText: 'canceled' }
+      } else {
+        res = { ...res, statusText: error.message }
+      }
 
       // 请求后回调
       if (params.__requestAfterFn) {
@@ -325,16 +336,14 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
 
       params.__failHttpToastFn && params.__failHttpToastFn(error, method, url, data, params, axiosConfig)
 
-      if (params._source && error.code === 'ERR_CANCELED' && error.name === 'CanceledError' && error.message === 'canceled') {
-        res = { ...res, status: 0, data: false, statusText: 'canceled' }
-      }
+      // 防抖结果
+      if (loadEndFn) loadEndFn('fail', res)
 
-      res = { ...res, status: 0, data: false, statusText: error.message }
+      // 如果不需要返回结果
+      if (params._noReturn) return
+      return Promise.reject(res)
     }
   }
-
-  // 如果不需要返回结果
-  if (params._noReturn) return
 
   // 请求后第一次回调-返回数据将作为新的数据向后传递
   if (params.__requestAfterMiddleFn) {
@@ -397,6 +406,9 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
     const resData = await params.__requestAfterFn('success', res.data, method, url, data, params, axiosConfig)
     resData ?? (res.data = resData)
   }
+
+  // 如果不需要返回结果
+  if (params._noReturn) return
 
   // 如果自定义了返回处理
   if (params.__handleResponseFn) {
