@@ -20,25 +20,12 @@ export type AnyObj = { [key: string]: any }
 export type Method = MethodType
 export type AxiosRequestConfig = AxiosRequestConfigType
 
-type RequestMiddleFunction = (
-  method: Method,
-  url: string,
-  data: AnyObj,
-  params: Params,
-  axiosConfig: AxiosRequestConfig
-) => AndPromise<{
-  method?: Method
-  url?: string
-  data?: AnyObj
-  params?: Params
-  axiosConfig?: AxiosRequestConfig
-}>
-
 // 获得中断请求的 source
 export const getSource = function () {
   return CancelToken.source()
 }
 
+// 支持自定义属性，必须以$开头
 type ParamsType = {
   baseURL?: string // 根路径
   timeout?: number // 超时时间   默认3s
@@ -60,15 +47,43 @@ type ParamsType = {
         data: AnyObj,
         params: Params,
         axiosConfig: AxiosRequestConfig
-      ) => AndPromise<{
+      ) => AndPromise<void | {
         data?: AnyObj // 登录参数
         headers?: AxiosRequestConfig['headers'] // 登录header
         // loginToken?: string // 登录标识token  切换用户后，清除其他用户缓存
       }>)
 
-  __requestBeforeFn?: false | RequestMiddleFunction // 请求前回调
+  __requestBeforeFn?:
+    | false
+    | ((
+        method: Method,
+        url: string,
+        data: AnyObj,
+        params: Params,
+        axiosConfig: AxiosRequestConfig
+      ) => AndPromise<void | {
+        method?: Method
+        url?: string
+        data?: AnyObj
+        params?: Params
+        axiosConfig?: AxiosRequestConfig
+      }>) // 请求前回调
 
-  __requestBeforeMiddleFn?: false | RequestMiddleFunction // 请求前最后一次回调 // 加密，验签
+  __requestBeforeMiddleFn?:
+    | false
+    | ((
+        method: Method,
+        url: string,
+        data: AnyObj,
+        params: Params,
+        axiosConfig: AxiosRequestConfig
+      ) => AndPromise<void | {
+        method?: Method
+        url?: string
+        data?: AnyObj
+        params?: Params
+        axiosConfig?: AxiosRequestConfig
+      }>) // 请求前最后一次回调 // 加密，验签
 
   _isCache?: false | number // 缓存时间 //! 必须设置 __requestReturnCodeCheckFn  并且校验结果为 true
   _cacheDateStore?: ('indexedDB' | 'sessionStorage' | 'localStorage')[] // 缓存存储位置 默认['indexedDB','sessionStorage']
@@ -81,28 +96,44 @@ type ParamsType = {
 
   _isUpLoad?: boolean // post请求表单提交
 
+  __handleResponseFn?: false | ((res: any) => any) // 处理返回数据 //! 优先级高于_responseAll
   _responseAll?: boolean // 是否返回全部数据
 
   _noReturn?: boolean // 不需要返回结果
 
-  __failHttpToastFn?: false | ((error: AxiosError, method: Method, url: string, data?: AnyObj, params?: Params, axiosConfig?: AxiosRequestConfig) => void) // http请求失败提示
+  __failHttpToastFn?: false | ((error: AxiosError, method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => void) // http请求失败提示
   __failToastFn?: false | ((res: any) => void) // 请求失败提示
 
-  __requestAfterMiddleFn?: false | ((res: any) => any) // 请求后第一次回调-返回数据将作为新的数据向后传递 // 解密，验签
+  __requestAfterMiddleFn?: false | ((res: any) => void | any) // 请求后第一次回调-返回数据将作为新的数据向后传递 // 解密，验签
 
   _responseLogin?: boolean // 接口返回 登录是否跳转
-  __checkLoginFn?: false | ((res: any) => AndPromise<{ login?: boolean; close?: boolean }>) // 接口返回检查是否是登录态
+  __checkLoginFn?: false | ((res: any) => AndPromise<void | { login?: boolean; close?: boolean }>) // 接口返回检查是否是登录态
   __toLoginToast?: false | ((close: boolean) => void) // 当前需要登录态 跳转登录页提示
   __toLoginFn?: false | ((close: boolean) => void) // 当前需要登录态 跳转登录页方法
 
-  __requestReturnCodeCheckFn?: false | ((res: any) => AndPromise<boolean>) // 请求后参数校验，可做相关提示   需要返回检查结果
+  __requestReturnCodeCheckFn?:
+    | false
+    | ((res: any, method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => AndPromise<boolean>) // 请求后参数校验，可做相关提示   需要返回检查结果
 
-  __requestAfterFn?: false | ((type: 'success' | 'fail', data: any) => AndPromise<any>) // 请求后回调
+  __requestAfterFn?:
+    | false
+    | ((
+        type: 'success' | 'fail',
+        res: any,
+        method: Method,
+        url: string,
+        data: AnyObj,
+        params: Params,
+        axiosConfig: AxiosRequestConfig
+      ) => AndPromise<void | any>) // 请求后回调
+
+  [key: string]: any
 }
 export type Params = AxiosRequestConfig & ParamsType
 
 // 默认配置
 const defaultParams: Params = {
+  withCredentials: true,
   baseURL: '',
   timeout: 3000,
   headers: {},
@@ -127,12 +158,12 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
     const endAxiosConfig: AxiosRequestConfig = axiosConfig
 
     for (const key in paramsProps) {
-      if (key[0] !== '_') {
-        // @ts-ignore
-        endAxiosConfig[key] = paramsProps[key]
-      } else {
+      if (key[0] === '_' || key[0] === '$') {
         // @ts-ignore
         endParams[key] = paramsProps[key]
+      } else {
+        // @ts-ignore
+        endAxiosConfig[key] = paramsProps[key]
       }
     }
 
@@ -277,13 +308,19 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
 
         res = await AXIOS({ ...axiosConfig, method, url, params: { _rid }, data: endData })
       }
+
+      // 防抖结果
+      if (loadEndFn) loadEndFn(res)
     } catch (error: any) {
+      // 防抖结果
+      if (loadEndFn) loadEndFn(res)
+
       // 如果不需要返回结果
       if (params._noReturn) return
 
       // 请求后回调
       if (params.__requestAfterFn) {
-        params.__requestAfterFn('fail', error)
+        params.__requestAfterFn('fail', error, method, url, data, params, axiosConfig)
       }
 
       params.__failHttpToastFn && params.__failHttpToastFn(error, method, url, data, params, axiosConfig)
@@ -296,21 +333,22 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
     }
   }
 
-  // 防抖结果
-  if (loadEndFn) loadEndFn(res)
-
   // 如果不需要返回结果
   if (params._noReturn) return
 
   // 请求后第一次回调-返回数据将作为新的数据向后传递
-  if (params.__requestAfterMiddleFn) res = params.__requestAfterMiddleFn(res)
+  if (params.__requestAfterMiddleFn) {
+    const endRes = params.__requestAfterMiddleFn(res)
+    endRes ?? (res = endRes)
+  }
 
   // 检查登录提示
   const isLogin = await (async () => {
-    const { login: isLogin, close: isClose } = await (async () => {
-      if (!params._responseLogin || !params.__checkLoginFn) return { login: true, close: false }
-      return await params.__checkLoginFn(res)
-    })()
+    const { login: isLogin, close: isClose } =
+      (await (async () => {
+        if (!params._responseLogin || !params.__checkLoginFn) return { login: true, close: false }
+        return await params.__checkLoginFn(res)
+      })()) || {}
 
     // 如果设置了登录 判断
     if (!isLogin && params._responseLogin) {
@@ -334,7 +372,7 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
   const resCheck = await (async () => {
     // 请求后参数校验，可做相关提示
     if (params.__requestReturnCodeCheckFn) {
-      return await params.__requestReturnCodeCheckFn(res)
+      return await params.__requestReturnCodeCheckFn(res, method, url, data, params, axiosConfig)
     }
 
     return true
@@ -356,8 +394,13 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
 
   // 请求后回调
   if (params.__requestAfterFn) {
-    const data = await params.__requestAfterFn('success', res.data)
-    if (data !== undefined) res.data = data
+    const resData = await params.__requestAfterFn('success', res.data, method, url, data, params, axiosConfig)
+    resData ?? (res.data = resData)
+  }
+
+  // 如果自定义了返回处理
+  if (params.__handleResponseFn) {
+    return params.__handleResponseFn(res)
   }
 
   // 是否设置了 返回全部结果
