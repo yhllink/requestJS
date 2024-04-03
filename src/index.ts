@@ -141,6 +141,8 @@ const defaultParams: Params = {
   _rid: true, // 请求随机数时间戳
 }
 
+type Request = (method: Method, url: string, data?: AnyObj, params?: Params, axiosConfig?: AxiosRequestConfig) => Promise<any>
+
 /**
  * 请求方法
  * @param method 请求方式 POST GET
@@ -149,7 +151,7 @@ const defaultParams: Params = {
  * @param params 请求配置项<Params>
  * @returns
  */
-const request = async function (method: Method, url: string, data: AnyObj = {}, params: Params = {}, axiosConfig: AxiosRequestConfig = {}) {
+const request: Request = async function request(method, url, data = {}, params = {}, axiosConfig = {}) {
   // 合并配置
   ;[params, axiosConfig] = (() => {
     const paramsProps = { ...defaultParams, ...params }
@@ -420,8 +422,15 @@ const request = async function (method: Method, url: string, data: AnyObj = {}, 
 }
 export default request
 
-export const create = function (defaultParams: Params, defaultAxiosConfig: AxiosRequestConfig = {}) {
-  return function (method: Method, url: string, data: AnyObj, params: Params = {}, axiosConfig: AxiosRequestConfig = {}) {
+/**
+ * 创建请求方法
+ * @param {Params} defaultParams
+ * @param {AxiosRequestConfig} defaultAxiosConfig
+ * @returns {Request}
+ */
+export const create = function (defaultParams: Params, defaultAxiosConfig: AxiosRequestConfig = {}): Request {
+  const newRequest: Request = function newRequest(method, url, data, params = {}, axiosConfig = {}) {
     return request(method, url, data, { ...defaultParams, ...params }, { ...defaultAxiosConfig, ...axiosConfig })
   }
+  return newRequest
 }
