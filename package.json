@@ -1,10 +1,22 @@
 {
   "name": "yhl-request",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "yaohanlin",
   "main": "lib/index.js",
   "module": "es/index.js",
   "typings": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./es/index.d.ts",
+        "default": "./es/index.js"
+      },
+      "require": {
+        "types": "./lib/index.d.ts",
+        "default": "./lib/index.js"
+      }
+    }
+  },
   "scripts": {
     "build": "rollup -c"
   },
