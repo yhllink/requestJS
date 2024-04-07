@@ -13,8 +13,8 @@ export default [
   {
     input: inputPath,
     output: [
-      { file: pkg.main, format: 'cjs' },
-      { file: pkg.module, format: 'esm' },
+      { file: pkg.main, format: 'cjs', exports: 'auto' },
+      { file: pkg.module, format: 'esm', exports: 'auto' },
     ],
     plugins: [
       typescript({
