@@ -350,7 +350,7 @@ const request: Request = async function request(method, url, data = {}, params =
   // 请求后第一次回调-返回数据将作为新的数据向后传递
   if (params.__requestAfterMiddleFn) {
     const endRes = params.__requestAfterMiddleFn(res)
-    endRes ?? (res = endRes)
+    if ((endRes ?? '666') !== '666') res = endRes
   }
 
   // 检查登录提示
@@ -406,7 +406,7 @@ const request: Request = async function request(method, url, data = {}, params =
   // 请求后回调
   if (params.__requestAfterFn) {
     const resData = await params.__requestAfterFn('success', res.data, method, url, data, params, axiosConfig)
-    resData ?? (res.data = resData)
+    if ((resData ?? '666') !== '666') res.data = resData
   }
 
   // 如果不需要返回结果
