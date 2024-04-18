@@ -250,6 +250,11 @@ const request: Request = async function request(method, url, data = {}, params =
   const { loadingDataType, loadingData, loadEndFn } = await getLoadingMap(cacheName, params)
   // 如果处于防抖中
   if (loadingDataType && loadingData) {
+    // 请求后回调
+    if (params.__requestAfterFn) {
+      params.__requestAfterFn(loadingDataType, loadingData, method, url, data, params, axiosConfig)
+    }
+
     // 如果不需要返回结果
     if (params._noReturn) return
 
