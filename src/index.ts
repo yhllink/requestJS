@@ -127,7 +127,7 @@ type ParamsType = {
         axiosConfig: AxiosRequestConfig
       ) => AndPromise<void | any>) // 请求后回调
 
-  [key: string]: any
+  [key: `$${string}`]: any
 }
 export type Params = AxiosRequestConfig & ParamsType
 
