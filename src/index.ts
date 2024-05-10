@@ -1,7 +1,7 @@
 import axios, { Method as MethodType, AxiosRequestConfig as AxiosRequestConfigType, CancelTokenSource, AxiosResponse, AxiosError } from 'axios'
 import { JSONParse, ifType, prefixInteger } from 'yhl-utils'
 
-import getCache from './utils/getCache'
+import getCache, { clearCache, clearUserCache } from './utils/getCache'
 import getLoadingMap from './utils/getLoadingMap'
 
 const CancelToken = axios.CancelToken
@@ -86,6 +86,7 @@ type ParamsType = {
       }>) // 请求前最后一次回调 // 加密，验签
 
   _isCache?: false | number // 缓存时间 //! 必须设置 __requestReturnCodeCheckFn  并且校验结果为 true
+  __getCacheUserTag?: () => string // 缓存用户标识
   _cacheDateStore?: ('indexedDB' | 'sessionStorage' | 'localStorage')[] // 缓存存储位置 默认['indexedDB','sessionStorage']
   _isCacheFn?: false | ((res: any) => Promise<void | boolean>) // 判断是否需要缓存 //! 必须设置 _isCache 默认缓存
 
@@ -442,8 +443,8 @@ export default request
  * @param {AxiosRequestConfig} defaultAxiosConfig
  * @returns {Request}
  */
-export const create = function (defaultParams: Params, defaultAxiosConfig: AxiosRequestConfig = {}): Request {
-  const newRequest: Request = function newRequest<T = any>(
+export const create = function (defaultParams: Params, defaultAxiosConfig: AxiosRequestConfig = {}) {
+  const newRequest: Request & { clearCache: () => void; clearUserCache: () => void } = function newRequest<T = any>(
     method: Method,
     url: string,
     data: AnyObj = {},
@@ -452,5 +453,8 @@ export const create = function (defaultParams: Params, defaultAxiosConfig: Axios
   ) {
     return request<T>(method, url, data, { ...defaultParams, ...params }, { ...defaultAxiosConfig, ...axiosConfig })
   }
+
+  newRequest.clearCache = clearCache
+  newRequest.clearUserCache = clearUserCache
   return newRequest
 }

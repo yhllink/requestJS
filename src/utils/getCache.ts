@@ -19,6 +19,27 @@ if (!isServer) {
   })
 }
 
+export function clearCache() {
+  if (isServer) return
+
+  if (!IndexedDB.hasDB()) return
+
+  new IndexedDB(CacheNameDBName).clear()
+}
+
+export async function clearUserCache() {
+  if (isServer) return
+  if (!IndexedDB.hasDB()) return
+
+  const DB = new IndexedDB(CacheNameDBName)
+  const list = await DB.queryKey((key) => key.split('-').length !== 2)
+  if (Array.isArray(list)) {
+    for (let i = 0; i < list.length; i++) {
+      DB.delete(list[i])
+    }
+  }
+}
+
 interface EndCacheData {
   cacheName?: string
   cacheData?: any
@@ -28,8 +49,10 @@ export default async function getCache(method: Method, url: string, data: any, p
   const endCacheData: EndCacheData = {}
   if (isServer) return endCacheData
 
+  const userTag = params.__getCacheUserTag?.() || ''
+
   // 设置缓存名
-  const cacheName = CacheNameBase + '-' + MD5(JSON.stringify({ axiosConfig, cacheNameJSON: { method, url, data, params } }))
+  const cacheName = CacheNameBase + '-' + MD5(userTag) + '-' + MD5(JSON.stringify({ cacheNameJSON: { method, url, data, params } }))
   endCacheData.cacheName = cacheName
 
   if (!params?._isCache) return endCacheData
@@ -61,7 +84,7 @@ export default async function getCache(method: Method, url: string, data: any, p
     return { DB, sessionData }
   })()
 
-  const toCache = function (res: any) {
+  endCacheData.setCache = function (res) {
     const cacheData: {
       cacheName?: string
       url: string
@@ -95,10 +118,6 @@ export default async function getCache(method: Method, url: string, data: any, p
     }
   }
 
-  endCacheData.setCache = function (res) {
-    toCache(res)
-  }
-
   if (!sessionData) return endCacheData
 
   const cacheData = (() => {
@@ -110,7 +129,7 @@ export default async function getCache(method: Method, url: string, data: any, p
   })()
   if (!cacheData) return endCacheData
 
-  function clearSession() {
+  if (!cacheData || 'cacheNamedataparamstimeurl' !== Object.keys(cacheData).sort().join('') || cacheData.time + params._isCache < +new Date()) {
     setTimeout(() => {
       if (DB) {
         DB.delete(cacheName)
@@ -119,13 +138,11 @@ export default async function getCache(method: Method, url: string, data: any, p
 
       sessionStorage.removeItem(cacheName)
     }, 0)
-  }
 
-  if (!cacheData || 'cacheNamedataparamstimeurl' !== Object.keys(cacheData).sort().join('') || cacheData.time + params._isCache < +new Date()) {
-    clearSession()
     return endCacheData
   }
 
+  cacheData.data._isCache = true
   endCacheData.cacheData = cacheData.data
 
   return endCacheData
