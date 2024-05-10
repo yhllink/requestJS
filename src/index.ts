@@ -444,17 +444,9 @@ export default request
  * @returns {Request}
  */
 export const create = function (defaultParams: Params, defaultAxiosConfig: AxiosRequestConfig = {}) {
-  const newRequest: Request & { clearCache: () => void; clearUserCache: () => void } = function newRequest<T = any>(
-    method: Method,
-    url: string,
-    data: AnyObj = {},
-    params: Params = {},
-    axiosConfig: AxiosRequestConfig = {}
-  ) {
+  return function newRequest<T = any>(method: Method, url: string, data: AnyObj = {}, params: Params = {}, axiosConfig: AxiosRequestConfig = {}) {
     return request<T>(method, url, data, { ...defaultParams, ...params }, { ...defaultAxiosConfig, ...axiosConfig })
   }
-
-  newRequest.clearCache = clearCache
-  newRequest.clearUserCache = clearUserCache
-  return newRequest
 }
+
+export { clearCache, clearUserCache }

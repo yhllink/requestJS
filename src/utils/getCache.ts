@@ -49,10 +49,10 @@ export default async function getCache(method: Method, url: string, data: any, p
   const endCacheData: EndCacheData = {}
   if (isServer) return endCacheData
 
-  const userTag = params.__getCacheUserTag?.() || ''
+  const userTag = params.__getCacheUserTag?.()
 
   // 设置缓存名
-  const cacheName = CacheNameBase + '-' + MD5(userTag) + '-' + MD5(JSON.stringify({ cacheNameJSON: { method, url, data, params } }))
+  const cacheName = CacheNameBase + '-' + (userTag ? MD5(userTag) + '-' : '') + MD5(JSON.stringify({ cacheNameJSON: { method, url, data, params } }))
   endCacheData.cacheName = cacheName
 
   if (!params?._isCache) return endCacheData
