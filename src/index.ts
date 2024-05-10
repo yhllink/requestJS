@@ -141,7 +141,10 @@ const defaultParams: Params = {
   _rid: true, // 请求随机数时间戳
 }
 
-type Request = <T = any>(method: Method, url: string, data?: AnyObj, params?: Params, axiosConfig?: AxiosRequestConfig) => Promise<T>
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
+}
+type Request = <T = any>(method: Method, url: string, data?: AnyObj, params?: Params, axiosConfig?: AxiosRequestConfig) => Promise<DeepPartial<T>>
 
 /**
  * 请求方法
