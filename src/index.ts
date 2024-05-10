@@ -141,7 +141,7 @@ const defaultParams: Params = {
   _rid: true, // 请求随机数时间戳
 }
 
-type Request = <T>(method: Method, url: string, data?: AnyObj, params?: Params, axiosConfig?: AxiosRequestConfig) => Promise<T>
+type Request = <T = any>(method: Method, url: string, data?: AnyObj, params?: Params, axiosConfig?: AxiosRequestConfig) => Promise<T>
 
 /**
  * 请求方法
@@ -151,7 +151,13 @@ type Request = <T>(method: Method, url: string, data?: AnyObj, params?: Params, 
  * @param params 请求配置项<Params>
  * @returns
  */
-const request: Request = async function request<T>(method: Method, url: string, data: AnyObj = {}, params: Params = {}, axiosConfig: AxiosRequestConfig = {}) {
+const request: Request = async function request<T = any>(
+  method: Method,
+  url: string,
+  data: AnyObj = {},
+  params: Params = {},
+  axiosConfig: AxiosRequestConfig = {}
+) {
   // 合并配置
   ;[params, axiosConfig] = (() => {
     const paramsProps = { ...defaultParams, ...params }
@@ -434,7 +440,7 @@ export default request
  * @returns {Request}
  */
 export const create = function (defaultParams: Params, defaultAxiosConfig: AxiosRequestConfig = {}): Request {
-  const newRequest: Request = function newRequest<T>(
+  const newRequest: Request = function newRequest<T = any>(
     method: Method,
     url: string,
     data: AnyObj = {},
