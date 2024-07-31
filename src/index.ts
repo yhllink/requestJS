@@ -33,7 +33,7 @@ type ParamsType = {
   timeout?: number // 超时时间   默认3s
   headers?: false | AxiosRequestConfig['headers'] // 请求头
 
-  ___setCurrentParams?: () => ParamsType
+  ___setCurrentParams?: (method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => Params
 
   _source?: CancelTokenSource // 中断请求的 source
 
@@ -168,11 +168,14 @@ const request: Request = async function request<T = any>(
 ) {
   // 合并配置
   ;[params, axiosConfig] = await (async () => {
-    const paramsProps = {
-      ...(defaultParams.___setCurrentParams ? await defaultParams.___setCurrentParams() : {}),
-      ...defaultParams,
-      ...(params.___setCurrentParams ? await params.___setCurrentParams() : {}),
-      ...params,
+    const paramsProps = { ...defaultParams, ...params }
+
+    const currentParams: Params = paramsProps.___setCurrentParams ? await paramsProps.___setCurrentParams(method, url, data, paramsProps, axiosConfig) : {}
+    for (const key in currentParams) {
+      if (!Object.prototype.hasOwnProperty.call(paramsProps, key)) {
+        // @ts-ignore
+        paramsProps[key] = currentParams[key]
+      }
     }
 
     const endParams: Params = {}
