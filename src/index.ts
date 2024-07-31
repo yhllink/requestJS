@@ -1,6 +1,8 @@
 import axios, { Method as MethodType, AxiosRequestConfig as AxiosRequestConfigType, CancelTokenSource, AxiosResponse, AxiosError } from 'axios'
 import { JSONParse, ifType, prefixInteger } from 'yhl-utils'
 
+import OneLoadingManage from './utils/oneLoadingManage'
+
 import getCache, { clearCache, clearUserCache } from './utils/getCache'
 import getLoadingMap from './utils/getLoadingMap'
 
@@ -30,6 +32,8 @@ type ParamsType = {
   baseURL?: string // 根路径
   timeout?: number // 超时时间   默认3s
   headers?: false | AxiosRequestConfig['headers'] // 请求头
+
+  ___setCurrentParams?: () => ParamsType
 
   _source?: CancelTokenSource // 中断请求的 source
 
@@ -163,8 +167,13 @@ const request: Request = async function request<T = any>(
   axiosConfig: AxiosRequestConfig = {}
 ) {
   // 合并配置
-  ;[params, axiosConfig] = (() => {
-    const paramsProps = { ...defaultParams, ...params }
+  ;[params, axiosConfig] = await (async () => {
+    const paramsProps = {
+      ...(defaultParams.___setCurrentParams ? await defaultParams.___setCurrentParams() : {}),
+      ...defaultParams,
+      ...(params.___setCurrentParams ? await params.___setCurrentParams() : {}),
+      ...params,
+    }
 
     const endParams: Params = {}
     const endAxiosConfig: AxiosRequestConfig = axiosConfig
@@ -449,4 +458,4 @@ export const create = function (defaultParams: Params, defaultAxiosConfig: Axios
   }
 }
 
-export { clearCache, clearUserCache }
+export { OneLoadingManage, clearCache, clearUserCache }
