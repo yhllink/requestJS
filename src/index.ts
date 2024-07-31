@@ -313,9 +313,9 @@ const request: Request = async function request<T = any>(
             const mm = prefixInteger(date.getMinutes(), 2)
             const ss = prefixInteger(date.getSeconds(), 2)
 
-            return parseInt(HH + mm + ss).toString(32)
+            return { _rid: parseInt(HH + mm + ss).toString(32) }
           })()
-        : undefined
+        : {}
 
       const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method.toUpperCase()) > -1
 
@@ -324,7 +324,7 @@ const request: Request = async function request<T = any>(
           ...axiosConfig,
           method,
           url,
-          params: { ...(axiosConfig.params || {}), ...endData, _rid },
+          params: { ...(axiosConfig.params || {}), ...endData, ..._rid },
         })
       } else {
         if (params._isUpLoad) {
@@ -343,7 +343,7 @@ const request: Request = async function request<T = any>(
           }
         }
 
-        res = await AXIOS({ ...axiosConfig, method, url, params: { _rid }, data: endData })
+        res = await AXIOS({ ...axiosConfig, method, url, params: { ..._rid }, data: endData })
       }
 
       // 防抖结果
