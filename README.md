@@ -2,7 +2,7 @@
 
 ```ts
 // 支持自定义属性，必须以$开头
-type ParamsType = {
+type Params = {
   baseURL?: string // 根路径
   timeout?: number // 超时时间   默认3s
   headers?: false | AxiosRequestConfig['headers'] // 请求头
@@ -13,6 +13,9 @@ type ParamsType = {
   __getBaseDataFn?: false | ((method: Method, url: string) => AnyObj) // 基础数据回调 //! 优先于_baseData   仅参数为Object生效
 
   _removeUndefined?: boolean // 删除参数中值为undefined的参数
+
+  // 设置当前请求的参数
+  ___setCurrentParams?: (method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => Params
 
   // 设置token方法支持async
   __getTokenFn?:

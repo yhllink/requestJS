@@ -3,8 +3,6 @@ import type { AxiosRequestConfig, Method, Params } from '../index'
 import { IndexedDB, isServer } from 'yhl-utils'
 import MD5 from 'blueimp-md5'
 
-const CacheNameBase = 'web-'
-
 const CacheNameDBName = 'yhlRequestCache'
 if (!isServer) {
   IndexedDB.initConfig(CacheNameDBName, {
@@ -19,23 +17,61 @@ if (!isServer) {
   })
 }
 
-export function clearCache() {
+export function clearCache(cacheDateStore: Params['_cacheDateStore'] = ['indexedDB', 'localStorage', 'sessionStorage']) {
   if (isServer) return
 
-  if (!IndexedDB.hasDB()) return
+  for (let i = 0; i < cacheDateStore.length; i++) {
+    if (cacheDateStore[i] === 'indexedDB' && IndexedDB.hasDB()) {
+      new IndexedDB(CacheNameDBName).clear()
+    }
 
-  new IndexedDB(CacheNameDBName).clear()
+    if (cacheDateStore[i] === 'sessionStorage') {
+      for (const key in window.sessionStorage) {
+        if (key.indexOf(CacheNameDBName) === 0) {
+          window.sessionStorage.removeItem(key)
+        }
+      }
+    }
+
+    if (cacheDateStore[i] === 'localStorage') {
+      for (const key in window.localStorage) {
+        if (key.indexOf(CacheNameDBName) === 0) {
+          window.localStorage.removeItem(key)
+        }
+      }
+    }
+  }
 }
 
-export async function clearUserCache() {
+export async function clearUserCache(cacheDateStore: Params['_cacheDateStore'] = ['indexedDB', 'localStorage', 'sessionStorage']) {
   if (isServer) return
-  if (!IndexedDB.hasDB()) return
 
-  const DB = new IndexedDB(CacheNameDBName)
-  const list = await DB.queryKey((key) => key.split('-').length !== 2)
-  if (Array.isArray(list)) {
-    for (let i = 0; i < list.length; i++) {
-      DB.delete(list[i])
+  const CacheNameDBNameUserStart = CacheNameDBName + '--'
+  for (let i = 0; i < cacheDateStore.length; i++) {
+    if (cacheDateStore[i] === 'indexedDB' && IndexedDB.hasDB()) {
+      const DB = new IndexedDB(CacheNameDBName)
+      const list = await DB.queryKey((key) => key.indexOf(CacheNameDBNameUserStart) === 0)
+      if (Array.isArray(list)) {
+        for (let i = 0; i < list.length; i++) {
+          DB.delete(list[i])
+        }
+      }
+    }
+
+    if (cacheDateStore[i] === 'sessionStorage') {
+      for (const key in window.sessionStorage) {
+        if (key.indexOf(CacheNameDBNameUserStart) === 0) {
+          window.sessionStorage.removeItem(key)
+        }
+      }
+    }
+
+    if (cacheDateStore[i] === 'localStorage') {
+      for (const key in window.localStorage) {
+        if (key.indexOf(CacheNameDBNameUserStart) === 0) {
+          window.localStorage.removeItem(key)
+        }
+      }
     }
   }
 }
@@ -52,7 +88,7 @@ export default async function getCache(method: Method, url: string, data: any, p
   const userTag = params.__getCacheUserTag?.()
 
   // 设置缓存名
-  const cacheName = CacheNameBase + '-' + (userTag ? MD5(userTag) + '-' : '') + MD5(JSON.stringify({ method, url, data, params }))
+  const cacheName = CacheNameDBName + '-' + (userTag ? MD5(userTag) : '') + '-' + MD5(JSON.stringify({ method, url, data, params }))
   endCacheData.cacheName = cacheName
 
   if (!params?._isCache) return endCacheData
