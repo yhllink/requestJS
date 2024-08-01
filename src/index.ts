@@ -264,113 +264,115 @@ const request: Request = async function request<T = any>(
   }
 
   // 获取缓存数据
-  const { cacheName, cacheData, setCache } = await getCache(method, url, data, params, axiosConfig)
+  const { cacheName, cacheData, setCache } = await getCache(method, url, data, params)
   // 如果有缓存
   if (cacheData) res = cacheData
 
-  // 检查防抖
-  const { loadingDataType, loadingData, loadEndFn } = await getLoadingMap(cacheName, params)
-  // 如果处于防抖中
-  if (loadingDataType && loadingData) {
-    // 请求后回调
-    if (params.__requestAfterFn) {
-      params.__requestAfterFn(loadingDataType, loadingData, method, url, data, params, axiosConfig)
-    }
-
-    // 如果不需要返回结果
-    if (params._noReturn) return
-
-    if (loadingDataType === 'fail') {
-      return Promise.reject(loadingData)
-    }
-
-    res = loadingData
-  }
-
-  // 如果没有缓存 //! 发送请求
-  if (!loadingDataType && !loadingData && !cacheData) {
-    const source = params._source
-    if (source) axiosConfig.cancelToken = source?.token
-
-    // 最后的请求参数
-    let endData = data
-
-    // 请求前最后一次回调 // 加密，验签
-    if (params.__requestBeforeMiddleFn) {
-      const dataAfterFnData = await params.__requestBeforeMiddleFn(method, url, data, params, axiosConfig)
-      if (dataAfterFnData) {
-        dataAfterFnData.method && (method = dataAfterFnData.method)
-        dataAfterFnData.url && (url = dataAfterFnData.url)
-        dataAfterFnData.data && (endData = dataAfterFnData.data)
-        dataAfterFnData.params && (params = dataAfterFnData.params)
-        dataAfterFnData.axiosConfig && (axiosConfig = dataAfterFnData.axiosConfig)
-      }
-    }
-
-    try {
-      const _rid = params._rid
-        ? (() => {
-            const date = new Date()
-            // 时分秒
-            const HH = prefixInteger(date.getHours(), 2)
-            const mm = prefixInteger(date.getMinutes(), 2)
-            const ss = prefixInteger(date.getSeconds(), 2)
-
-            return { _rid: parseInt(HH + mm + ss).toString(32) }
-          })()
-        : {}
-
-      const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method.toUpperCase()) > -1
-
-      if (isGetLike) {
-        res = await AXIOS({
-          ...axiosConfig,
-          method,
-          url,
-          params: { ...(axiosConfig.params || {}), ...endData, ..._rid },
-        })
-      } else {
-        if (params._isUpLoad) {
-          if (typeof axiosConfig.headers !== 'object') {
-            axiosConfig.headers = {}
-          }
-
-          axiosConfig.headers['Content-Type'] = 'multipart/form-data; charset=UTF-8'
-          endData = new FormData()
-          for (const key in data) {
-            if (ifType([Object, Array], data[key])) {
-              endData.append(key, new Blob([JSON.stringify(data[key])], { type: 'application/json' }))
-            } else {
-              endData.append(key, data[key])
-            }
-          }
-        }
-
-        res = await AXIOS({ ...axiosConfig, method, url, params: { ..._rid }, data: endData })
-      }
-
-      // 防抖结果
-      if (loadEndFn) loadEndFn('success', res)
-    } catch (error: any) {
-      if (params._source && error.code === 'ERR_CANCELED' && error.name === 'CanceledError' && error.message === 'canceled') {
-        res = { ...res, statusText: 'canceled' }
-      } else {
-        res = { ...res, statusText: error.message }
-      }
-
+  if (!cacheData) {
+    // 检查防抖
+    const { loadingDataType, loadingData, loadEndFn } = await getLoadingMap(cacheName, params)
+    // 如果处于防抖中
+    if (loadingDataType && loadingData) {
       // 请求后回调
       if (params.__requestAfterFn) {
-        params.__requestAfterFn('fail', error, method, url, data, params, axiosConfig)
+        params.__requestAfterFn(loadingDataType, loadingData, method, url, data, params, axiosConfig)
       }
-
-      params.__failHttpToastFn && params.__failHttpToastFn(error, method, url, data, params, axiosConfig)
-
-      // 防抖结果
-      if (loadEndFn) loadEndFn('fail', res)
 
       // 如果不需要返回结果
       if (params._noReturn) return
-      return Promise.reject(res)
+
+      if (loadingDataType === 'fail') {
+        return Promise.reject(loadingData)
+      }
+
+      res = loadingData
+    }
+
+    // 如果没有在防抖 //! 发送请求
+    if (!loadingDataType && !loadingData) {
+      const source = params._source
+      if (source) axiosConfig.cancelToken = source?.token
+
+      // 最后的请求参数
+      let endData = data
+
+      // 请求前最后一次回调 // 加密，验签
+      if (params.__requestBeforeMiddleFn) {
+        const dataAfterFnData = await params.__requestBeforeMiddleFn(method, url, data, params, axiosConfig)
+        if (dataAfterFnData) {
+          dataAfterFnData.method && (method = dataAfterFnData.method)
+          dataAfterFnData.url && (url = dataAfterFnData.url)
+          dataAfterFnData.data && (endData = dataAfterFnData.data)
+          dataAfterFnData.params && (params = dataAfterFnData.params)
+          dataAfterFnData.axiosConfig && (axiosConfig = dataAfterFnData.axiosConfig)
+        }
+      }
+
+      try {
+        const _rid = params._rid
+          ? (() => {
+              const date = new Date()
+              // 时分秒
+              const HH = prefixInteger(date.getHours(), 2)
+              const mm = prefixInteger(date.getMinutes(), 2)
+              const ss = prefixInteger(date.getSeconds(), 2)
+
+              return { _rid: parseInt(HH + mm + ss).toString(32) }
+            })()
+          : {}
+
+        const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method.toUpperCase()) > -1
+
+        if (isGetLike) {
+          res = await AXIOS({
+            ...axiosConfig,
+            method,
+            url,
+            params: { ...(axiosConfig.params || {}), ...endData, ..._rid },
+          })
+        } else {
+          if (params._isUpLoad) {
+            if (typeof axiosConfig.headers !== 'object') {
+              axiosConfig.headers = {}
+            }
+
+            axiosConfig.headers['Content-Type'] = 'multipart/form-data; charset=UTF-8'
+            endData = new FormData()
+            for (const key in data) {
+              if (ifType([Object, Array], data[key])) {
+                endData.append(key, new Blob([JSON.stringify(data[key])], { type: 'application/json' }))
+              } else {
+                endData.append(key, data[key])
+              }
+            }
+          }
+
+          res = await AXIOS({ ...axiosConfig, method, url, params: { ..._rid }, data: endData })
+        }
+
+        // 防抖结果
+        if (loadEndFn) loadEndFn('success', res)
+      } catch (error: any) {
+        if (params._source && error.code === 'ERR_CANCELED' && error.name === 'CanceledError' && error.message === 'canceled') {
+          res = { ...res, statusText: 'canceled' }
+        } else {
+          res = { ...res, statusText: error.message }
+        }
+
+        // 请求后回调
+        if (params.__requestAfterFn) {
+          params.__requestAfterFn('fail', error, method, url, data, params, axiosConfig)
+        }
+
+        params.__failHttpToastFn && params.__failHttpToastFn(error, method, url, data, params, axiosConfig)
+
+        // 防抖结果
+        if (loadEndFn) loadEndFn('fail', res)
+
+        // 如果不需要返回结果
+        if (params._noReturn) return
+        return Promise.reject(res)
+      }
     }
   }
 

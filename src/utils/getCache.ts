@@ -45,14 +45,14 @@ interface EndCacheData {
   cacheData?: any
   setCache?: (cacheData: any) => void
 }
-export default async function getCache(method: Method, url: string, data: any, params: Params, axiosConfig: AxiosRequestConfig) {
+export default async function getCache(method: Method, url: string, data: any, params: Params) {
   const endCacheData: EndCacheData = {}
   if (isServer) return endCacheData
 
   const userTag = params.__getCacheUserTag?.()
 
   // 设置缓存名
-  const cacheName = CacheNameBase + '-' + (userTag ? MD5(userTag) + '-' : '') + MD5(JSON.stringify({ cacheNameJSON: { method, url, data, params } }))
+  const cacheName = CacheNameBase + '-' + (userTag ? MD5(userTag) + '-' : '') + MD5(JSON.stringify({ method, url, data, params }))
   endCacheData.cacheName = cacheName
 
   if (!params?._isCache) return endCacheData
@@ -85,16 +85,8 @@ export default async function getCache(method: Method, url: string, data: any, p
   })()
 
   endCacheData.setCache = function (res) {
-    const cacheData: {
-      cacheName?: string
-      url: string
-      params: any
-      data: any
-      time: number
-    } = {
+    const cacheData: { cacheName?: string; data: any; time: number } = {
       cacheName: undefined,
-      url,
-      params: data,
       data: JSON.parse(JSON.stringify(res)),
       time: +new Date(),
     }
@@ -103,17 +95,17 @@ export default async function getCache(method: Method, url: string, data: any, p
       if (DateStore[i] === 'indexedDB' && DB) {
         cacheData.cacheName = cacheName
         DB.add(cacheData)
-        break
+        return
       }
 
       if (DateStore[i] === 'sessionStorage') {
         window.sessionStorage.setItem(cacheName, JSON.stringify(cacheData))
-        break
+        return
       }
 
       if (DateStore[i] === 'localStorage') {
         window.localStorage.setItem(cacheName, JSON.stringify(cacheData))
-        break
+        return
       }
     }
   }
@@ -129,14 +121,24 @@ export default async function getCache(method: Method, url: string, data: any, p
   })()
   if (!cacheData) return endCacheData
 
-  if (!cacheData || 'cacheNamedataparamstimeurl' !== Object.keys(cacheData).sort().join('') || cacheData.time + params._isCache < +new Date()) {
+  if (!cacheData || 'cacheNamedatatime' !== Object.keys(cacheData).sort().join('') || cacheData.time + params._isCache < +new Date()) {
     setTimeout(() => {
-      if (DB) {
-        DB.delete(cacheName)
-        return
-      }
+      for (let i = 0; i < DateStore.length; i++) {
+        if (DateStore[i] === 'indexedDB' && DB) {
+          DB.delete(cacheName)
+          return
+        }
 
-      sessionStorage.removeItem(cacheName)
+        if (DateStore[i] === 'sessionStorage') {
+          window.sessionStorage.removeItem(cacheName)
+          return
+        }
+
+        if (DateStore[i] === 'localStorage') {
+          window.localStorage.removeItem(cacheName)
+          return
+        }
+      }
     }, 0)
 
     return endCacheData
