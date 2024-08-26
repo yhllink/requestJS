@@ -1,6 +1,6 @@
 {
   "name": "yhl-request",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "yaohanlin",
   "main": "./lib/index.js",
   "module": "./es/index.js",
@@ -22,7 +22,7 @@
     "./lib/*"
   ],
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c && node ./buildEnd.js"
   },
   "repository": {
     "type": "git",
@@ -37,7 +37,7 @@
   "dependencies": {
     "axios": "^1.0.0",
     "blueimp-md5": "^2.0.0",
-    "yhl-utils": "^0.1.33"
+    "yhl-utils": "^0.2.9"
   },
   "devDependencies": {
     "@babel/core": "^7.21.0",

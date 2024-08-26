@@ -27,12 +27,12 @@ export default async function getLoadingMap(
     if (!loadingData) return
 
     loadingData.type = 'end'
-    loadingData.data = res
+    loadingData.data = JSON.parse(JSON.stringify(res))
     loadingData.dataType = type
 
     loadingData.time = setTimeout(() => {
       LoadingMap.delete(cacheName)
-    }, params?._debounceTime || 500)
+    }, params?._debounceTime ?? 500)
 
     LoadingMap.set(cacheName, loadingData)
   }

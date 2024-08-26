@@ -4,8 +4,8 @@ import { deletePathSync } from 'yhl-explorer-js'
 
 import pkg from './package.json'
 
-deletePathSync(pkg.main)
-deletePathSync(pkg.module)
+deletePathSync(path.resolve(pkg.main, '../'))
+deletePathSync(path.resolve(pkg.module, '../'))
 
 const inputPath = path.resolve(__dirname, './src/index.ts')
 
@@ -13,8 +13,8 @@ export default [
   {
     input: inputPath,
     output: [
-      { file: pkg.main, format: 'cjs', exports: 'auto' },
-      { file: pkg.module, format: 'esm', exports: 'auto' },
+      { dir: path.resolve(pkg.main, '../'), format: 'cjs', exports: 'auto' },
+      { dir: path.resolve(pkg.module, '../'), format: 'esm', exports: 'auto' },
     ],
     plugins: [
       typescript({
