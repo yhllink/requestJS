@@ -1,6 +1,6 @@
 {
   "name": "yhl-request",
-  "version": "0.1.11",
+  "version": "0.2.1",
   "description": "yaohanlin",
   "main": "./lib/index.js",
   "module": "./es/index.js",

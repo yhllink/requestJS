@@ -176,9 +176,9 @@ export type FirstOptionType = {
 /**
  * 请求方法
  */
-async function request<T = any>(option: FirstOptionType): Promise<DeepPartial<T> | undefined>
-async function request<T = any>(method: Method, url: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T> | undefined>
-async function request<T = any>(method: Method | FirstOptionType, url?: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T> | undefined> {
+async function request<T = any>(option: FirstOptionType): Promise<DeepPartial<T>>
+async function request<T = any>(method: Method, url: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T>>
+async function request<T = any>(method: Method | FirstOptionType, url?: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T>> {
   // 处理传入的参数
   ;[method, url = '', data = {}, params = {}] = getInitOptions(method, url, data, params)
 
@@ -278,7 +278,7 @@ async function request<T = any>(method: Method | FirstOptionType, url?: string, 
   }
 
   // 如果不需要返回结果
-  if (params._noReturn) return
+  if (params._noReturn) return res
 
   // 如果自定义了返回处理
   if (params.__handleResponseFn) {
@@ -294,9 +294,9 @@ export default request
  * 创建请求方法
  */
 export function create(defaultParams: Params = {}) {
-  function newRequest<T = any>(option: FirstOptionType): Promise<DeepPartial<T> | undefined>
-  function newRequest<T = any>(method: Method, url: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T> | undefined>
-  function newRequest<T = any>(method: Method | FirstOptionType, url?: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T> | undefined> {
+  function newRequest<T = any>(option: FirstOptionType): Promise<DeepPartial<T>>
+  function newRequest<T = any>(method: Method, url: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T>>
+  function newRequest<T = any>(method: Method | FirstOptionType, url?: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T>> {
     ;[method, url = '', data = {}, params = {}] = getInitOptions(method, url, data, params)
     return request(method, url, data, { ...defaultParams, ...params })
   }
