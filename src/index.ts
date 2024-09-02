@@ -223,6 +223,7 @@ async function request<T = any>(method: Method | FirstOptionType, url?: string, 
 
       if (ress.type === 'success') {
         res = ress.res
+        ress.res = undefined
       }
 
       if (ress.type === 'fail') {
