@@ -33,7 +33,7 @@ export default [
       typescript({
         declaration: true,
         cacheRoot: path.resolve(__dirname, 'node_modules/.rts2_cache'),
-        tsconfigOverride: { compilerOptions: { target: 'es5' } },
+        tsconfigOverride: { compilerOptions: { target: 'es5' }, include: ['src'] },
       }),
     ],
   },

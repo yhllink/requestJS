@@ -1,4 +1,4 @@
-export default class OneLoadingManage {
+export class OneLoadingManage {
   private loadingCount = 0
   private openLoading: () => void = () => {}
   private closeLoading: () => void = () => {}
@@ -12,14 +12,17 @@ export default class OneLoadingManage {
     openLoading,
     closeLoading,
     openOnce = true,
+    closeDelay = 360,
   }: {
     openLoading: OneLoadingManage['openLoading']
     closeLoading: OneLoadingManage['closeLoading']
-    openOnce: boolean
+    openOnce?: boolean
+    closeDelay?: number
   }) {
     this.openOnce = openOnce
     this.openLoading = openLoading
     this.closeLoading = closeLoading
+    this.closeDelay = closeDelay
   }
 
   private checkStatus(status: boolean) {
