@@ -1,17 +1,17 @@
 import axios, { Method as MethodType, AxiosRequestConfig as AxiosRequestConfigType, CancelTokenSource, AxiosResponse, AxiosError } from 'axios'
 import { hasVal } from 'yhl-utils'
 
-import { OneLoadingManage } from '@/utils/oneLoadingManage'
+import { OneLoadingManage } from './utils/oneLoadingManage'
 
-import getInitOptions from '@/utils/getInitOptions'
-import getHandleOptions from '@/utils/getHandleOptions'
-import handleFunction from '@/utils/handleFunction'
-import setToken from '@/utils/setToken'
-import handleRemoveUndefined from '@/utils/handleRemoveUndefined'
-import getCache, { clearCache, clearUserCache } from '@/utils/getCache'
-import getLoadingMap from '@/utils/getLoadingMap'
-import toRequest from '@/utils/toRequest'
-import cacheReqCode from '@/utils/cacheReqCode'
+import getInitOptions from './utils/getInitOptions'
+import getHandleOptions from './utils/getHandleOptions'
+import handleFunction from './utils/handleFunction'
+import setToken from './utils/setToken'
+import handleRemoveUndefined from './utils/handleRemoveUndefined'
+import getCache, { clearCache, clearUserCache } from './utils/getCache'
+import getLoadingMap from './utils/getLoadingMap'
+import toRequest from './utils/toRequest'
+import cacheReqCode from './utils/cacheReqCode'
 
 type AndPromise<T> = T | Promise<T>
 
