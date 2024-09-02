@@ -1,6 +1,6 @@
 {
   "name": "yhl-request",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "yaohanlin",
   "main": "./lib/index.js",
   "module": "./es/index.js",
@@ -35,20 +35,19 @@
   },
   "homepage": "https://github.com/yhllink/requestJS#readme",
   "dependencies": {
-    "axios": "^1.0.0",
-    "blueimp-md5": "^2.0.0",
-    "yhl-utils": "^0.2.9"
+    "axios": "^1.7.7",
+    "blueimp-md5": "^2.19.0",
+    "yhl-utils": "0.2.10"
   },
   "devDependencies": {
-    "@babel/core": "^7.21.0",
-    "@babel/preset-env": "^7.20.2",
-    "@rollup/plugin-babel": "^6.0.3",
-    "@rollup/plugin-node-resolve": "^15.0.1",
-    "@rollup/plugin-typescript": "^11.0.0",
-    "@types/blueimp-md5": "^2.18.0",
-    "rollup": "^2.79.1",
-    "rollup-plugin-typescript2": "^0.32.0",
-    "tslib": "^2.4.0",
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.4",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/blueimp-md5": "^2.18.2",
+    "rollup": "^4.21.2",
+    "rollup-plugin-typescript2": "^0.36.0",
     "yhl-explorer-js": "^0.0.7"
   }
 }

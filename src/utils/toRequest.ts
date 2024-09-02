@@ -1,8 +1,9 @@
 import axios from 'axios'
-import { loadModules, prefixInteger } from 'yhl-utils'
+import { prefixInteger } from 'yhl-utils'
 
 import { AnyObj, AxiosRequestConfig, Method, Params } from '..'
 import handleFunction from './handleFunction'
+import getTransformResponse from './getTransformResponse'
 
 const AXIOS = axios.create()
 
@@ -44,26 +45,11 @@ export default async function toRequest(
 
   const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method.toUpperCase()) > -1
 
-  const transformResponse = await (async () => {
-    const transformResponse = axiosConfig.transformResponse
-      ? Array.isArray(axiosConfig.transformResponse)
-        ? axiosConfig.transformResponse
-        : [axiosConfig.transformResponse]
-      : []
-
-    if (params._Number2String) {
-      const JSONParse = await loadModules<{
-        (str: string): any
-        init(): Promise<boolean>
-      }>(() => import('../modules/JSONParse'))
-      await JSONParse.init()
-      transformResponse.unshift(function (data) {
-        return JSONParse(data) || data
-      })
-    }
-
-    return transformResponse
-  })()
+  // 异步函数调用，用于获取经过特定转换后的响应
+  // 此处的目的是通过传递参数和自定义的Axios配置来请求服务器，并将服务器的响应通过特定的方式转换
+  // 参数params：函数的输入参数，包含请求所需的必要信息
+  // 参数axiosConfig：自定义的Axios配置项，用于设定请求的详细行为，如请求头、请求方法等
+  const transformResponse = await getTransformResponse(params, axiosConfig)
 
   const endAxiosConfig = await (() => {
     if (isGetLike) {

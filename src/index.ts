@@ -13,8 +13,6 @@ import getLoadingMap from './utils/getLoadingMap'
 import toRequest from './utils/toRequest'
 import cacheReqCode from './utils/cacheReqCode'
 
-const CancelToken = axios.CancelToken
-
 type AndPromise<T> = T | Promise<T>
 
 export type AnyObj = { [key: string]: any }
@@ -23,7 +21,7 @@ export type AxiosRequestConfig = AxiosRequestConfigType
 
 // 获得中断请求的 source
 export const getSource = function () {
-  return CancelToken.source()
+  return axios.CancelToken.source()
 }
 
 type ResType = AxiosResponse<any, AnyObj> & { requestData: AxiosResponse['data'] } & {
