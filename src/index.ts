@@ -78,7 +78,7 @@ type ParamsType = {
   _removeUndefined?: boolean
 
   // 【7】缓存用户标识
-  __getCacheUserTag?: () => string
+  __getCacheUserTag?: () => string | void
   // 【8】缓存时间 单位ms
   _isCache?: false | number
   // 【9】缓存存储位置 默认['indexedDB','sessionStorage']//! 必须设置 _isCache 默认缓存
@@ -160,7 +160,7 @@ type ParamsType = {
 }
 export type Params = AxiosRequestConfig & ParamsType
 
-type DeepPartial<T> = {
+export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
 }
 
@@ -268,11 +268,11 @@ async function request<T = any>(method: Method | FirstOptionType, url?: string, 
   // 请求后回调
   if (params.__requestAfterFn) {
     if (res.__ress.type === 'success') {
-      const resData = await params.__requestAfterFn('success', res.data, method, url, data, params, axiosConfig)
+      const resData = await params.__requestAfterFn(res.__ress.type, res.data, method, url, data, params, axiosConfig)
       if (resData && hasVal(resData)) res.data = resData
     }
     if (res.__ress.type === 'fail') {
-      params.__requestAfterFn('fail', res.error, method, url, data, params, axiosConfig)
+      params.__requestAfterFn(res.__ress.type, res.error, method, url, data, params, axiosConfig)
     }
   }
 
@@ -292,7 +292,12 @@ export default request
 /**
  * 创建请求方法
  */
-export function create(defaultParams: Params = {}) {
+export function create(defaultParams: Omit<Params, '___setCurrentParams'> = {}) {
+  if (Object.prototype.hasOwnProperty.call(defaultParams, '___setCurrentParams')) {
+    // @ts-ignore
+    delete defaultParams['___setCurrentParams']
+  }
+
   function newRequest<T = any>(option: FirstOptionType): Promise<DeepPartial<T>>
   function newRequest<T = any>(method: Method, url: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T>>
   function newRequest<T = any>(method: Method | FirstOptionType, url?: string, data?: AnyObj, params?: Params): Promise<DeepPartial<T>> {

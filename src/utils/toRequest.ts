@@ -13,17 +13,7 @@ export default async function toRequest(
   data: AnyObj,
   params: Params,
   axiosConfig: AxiosRequestConfig
-): Promise<
-  | {
-      type: 'success'
-      res: any
-    }
-  | {
-      type: 'fail'
-      statusText: string
-      error: any
-    }
-> {
+): Promise<{ type: 'success'; res: any } | { type: 'fail'; statusText: string; error: any }> {
   const source = params._source
   if (source)
     axiosConfig.cancelToken = source?.token
@@ -33,14 +23,7 @@ export default async function toRequest(
 
   const _rid = (() => {
     if (!params._rid) return {}
-
-    const date = new Date()
-    // 时分秒
-    const HH = prefixInteger(date.getHours(), 2)
-    const mm = prefixInteger(date.getMinutes(), 2)
-    const ss = prefixInteger(date.getSeconds(), 2)
-
-    return { _rid: parseInt(HH + mm + ss).toString(32) }
+    return { _rid: Date.now().toString(36) + '|' + Number(Math.floor(Math.random() * 100000)).toString(36) }
   })()
 
   const isGetLike = ['GET', 'DELETE', 'HEAD', 'OPTIONS'].indexOf(method.toUpperCase()) > -1

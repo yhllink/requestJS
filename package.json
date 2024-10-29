@@ -1,6 +1,6 @@
 {
   "name": "yhl-request",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "yaohanlin",
   "main": "./lib/index.js",
   "module": "./es/index.js",
@@ -37,7 +37,7 @@
   "dependencies": {
     "axios": "^1.7.7",
     "blueimp-md5": "^2.19.0",
-    "yhl-utils": "0.2.12"
+    "yhl-utils": "0.2.13"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -49,5 +49,9 @@
     "rollup": "^4.21.2",
     "rollup-plugin-typescript2": "^0.36.0",
     "yhl-explorer-js": "^0.0.7"
+  },
+  "volta": {
+    "node": "18.20.0",
+    "npm": "9.9.3"
   }
 }
