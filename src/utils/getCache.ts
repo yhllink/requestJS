@@ -2,7 +2,7 @@ import type { Method, Params } from '../index'
 
 // 导入工具库和MD5加密库
 import MD5 from 'blueimp-md5'
-import { IndexedDB, isServer } from 'yhl-utils'
+import { deepClone, IndexedDB, isServer } from 'yhl-utils'
 
 // 定义缓存数据库和存储名称
 const CacheNameDBName = 'yhlRequestCache'
@@ -28,7 +28,10 @@ export function clearCache(cacheDateStore: Params['_cacheDateStore'] = ['indexed
 
   for (let i = 0; i < cacheDateStore.length; i++) {
     if (cacheDateStore[i] === 'indexedDB' && IndexedDB.hasDB()) {
-      new IndexedDB(CacheNameDBName).clear() // 清除indexedDB中的缓存
+      // 清除indexedDB中的缓存
+      try {
+        new IndexedDB(CacheNameDBName).clear()
+      } catch (error) {}
     }
 
     if (cacheDateStore[i] === 'sessionStorage') {
@@ -66,13 +69,16 @@ export async function clearUserCache(cacheDateStore: Params['_cacheDateStore'] =
   const CacheNameDBNameUserStart = CacheNameDBName + '--' // 用户缓存的前缀
   for (let i = 0; i < cacheDateStore.length; i++) {
     if (cacheDateStore[i] === 'indexedDB' && IndexedDB.hasDB()) {
-      const DB = new IndexedDB(CacheNameDBName)
-      const list = await DB.queryKey((key) => key.startsWith(CacheNameDBNameUserStart)) // 查询用户相关键
-      if (Array.isArray(list)) {
-        for (let i = 0; i < list.length; i++) {
-          DB.delete(list[i]) // 删除用户相关键
+      try {
+        const DB = new IndexedDB(CacheNameDBName)
+        // 查询用户相关键
+        const list = await DB.queryKey((key) => key.startsWith(CacheNameDBNameUserStart))
+        if (Array.isArray(list)) {
+          for (let i = 0; i < list.length; i++) {
+            DB.delete(list[i]) // 删除用户相关键
+          }
         }
-      }
+      } catch (error) {}
     }
 
     if (cacheDateStore[i] === 'sessionStorage') {
@@ -142,9 +148,11 @@ export default async function getCache(method: Method, url: string, data: any, p
 
     for (let i = 0; i < DateStore.length; i++) {
       if (DateStore[i] === 'indexedDB' && IndexedDB.hasDB()) {
-        DB = new IndexedDB(CacheNameDBName)
-        sessionData = await DB.get(cacheName) // 从indexedDB获取缓存数据
-        break
+        try {
+          DB = new IndexedDB(CacheNameDBName)
+          sessionData = await DB.get(cacheName) // 从indexedDB获取缓存数据
+          break
+        } catch (error) {}
       }
 
       if (DateStore[i] === 'sessionStorage') {
@@ -171,15 +179,31 @@ export default async function getCache(method: Method, url: string, data: any, p
     // 定义设置缓存的方法
     const cacheData: { cacheName?: string; data: any; time: number } = {
       cacheName: undefined, // 缓存名称
-      data: JSON.parse(JSON.stringify(res)), // 要缓存的数据
+      // 要缓存的数据
+      data: JSON.parse(
+        JSON.stringify({
+          config: {
+            ...res.config,
+            transformResponse: undefined,
+            transformRequest: undefined,
+            transitional: undefined,
+          },
+          headers: res.headers,
+          status: res.status,
+          statusText: res.statusText,
+        })
+      ),
       time: +new Date(), // 当前时间戳
     }
+    cacheData.data.data = deepClone(res.data)
 
     for (let i = 0; i < DateStore.length; i++) {
       if (DateStore[i] === 'indexedDB' && DB) {
-        cacheData.cacheName = cacheName // 设置缓存名称
-        DB.add(cacheData) // 添加到indexedDB
-        return
+        try {
+          cacheData.cacheName = cacheName // 设置缓存名称
+          DB.add(cacheData) // 添加到indexedDB
+          return
+        } catch (error) {}
       }
 
       if (DateStore[i] === 'sessionStorage') {
@@ -218,8 +242,10 @@ export default async function getCache(method: Method, url: string, data: any, p
     setTimeout(() => {
       for (let i = 0; i < DateStore.length; i++) {
         if (DateStore[i] === 'indexedDB' && DB) {
-          DB.delete(cacheName) // 从indexedDB删除过期缓存
-          return
+          try {
+            DB.delete(cacheName) // 从indexedDB删除过期缓存
+            return
+          } catch (error) {}
         }
 
         if (DateStore[i] === 'sessionStorage') {

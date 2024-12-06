@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { prefixInteger } from 'yhl-utils'
 
 import { AnyObj, AxiosRequestConfig, Method, Params } from '..'
 import handleFunction from './handleFunction'
