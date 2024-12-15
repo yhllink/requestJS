@@ -129,27 +129,15 @@ type ParamsType = {
   _noReturn?: boolean
 
   // 【19】请求后第一次回调-返回数据将作为新的数据向后传递 // 解密，验签
-  __requestAfterMiddleFn?:
-    | false
-    | ((res: ResType, method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => AndPromise<void | ResType>)
+  __requestAfterMiddleFn?: false | ((res: ResType, method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => AndPromise<void | ResType>)
 
   // 【20】请求后参数校验，可做相关提示   需要返回检查结果
-  __requestReturnCodeCheckFn?:
-    | false
-    | ((res: any, method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => AndPromise<boolean>)
+  __requestReturnCodeCheckFn?: false | ((res: any, method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => AndPromise<boolean>)
 
   // 【22】请求后回调
   __requestAfterFn?:
     | false
-    | ((
-        type: 'success' | 'fail',
-        res: any,
-        method: Method,
-        url: string,
-        data: AnyObj,
-        params: Params,
-        axiosConfig: AxiosRequestConfig
-      ) => AndPromise<void | any>)
+    | ((type: 'success' | 'fail', res: any, method: Method, url: string, data: AnyObj, params: Params, axiosConfig: AxiosRequestConfig) => AndPromise<void | any>)
 
   // 【23】处理返回数据
   __handleResponseFn?: false | ((res: any) => any)
@@ -181,7 +169,7 @@ async function request<T = any>(method: Method | FirstOptionType, url?: string, 
   ;[method, url = '', data = {}, params = {}] = getInitOptions(method, url, data, params)
 
   // 根据配置处理  data, params, axiosConfig
-  let axiosConfig = {}
+  let axiosConfig: AxiosRequestConfig = {}
   ;[data, params, axiosConfig] = await getHandleOptions(method, url, data, params, axiosConfig)
 
   // 请求前回调
@@ -205,7 +193,7 @@ async function request<T = any>(method: Method | FirstOptionType, url?: string, 
   }
 
   // 获取缓存数据
-  const { cacheName, cacheData, setCache } = await getCache(method, url, data, params)
+  const { cacheName, cacheData, setCache } = await getCache(method, url, data, params, axiosConfig)
   // 如果有缓存
   if (cacheData) res = cacheData
 

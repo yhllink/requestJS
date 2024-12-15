@@ -1,4 +1,4 @@
-import type { Method, Params } from '../index'
+import type { AxiosRequestConfig, Method, Params } from '../index'
 
 // 导入工具库和MD5加密库
 import MD5 from 'blueimp-md5'
@@ -128,13 +128,13 @@ interface EndCacheData {
  * @param params 请求参数
  * @returns 返回缓存数据或空对象
  */
-export default async function getCache(method: Method, url: string, data: any, params: Params) {
+export default async function getCache(method: Method, url: string, data: any, params: Params, axiosConfig: AxiosRequestConfig) {
   const endCacheData: EndCacheData = {} // 创建缓存数据对象
 
   const userTag = params.__getCacheUserTag?.() // 获取用户标签
 
   // 设置缓存名
-  const cacheName = CacheNameDBName + '-' + (userTag ? MD5(userTag) : '') + '-' + MD5(JSON.stringify({ method, url, data, params })) // 生成缓存名
+  const cacheName = CacheNameDBName + '-' + (userTag ? MD5(userTag) : '') + '-' + MD5(JSON.stringify({ method, url, data, params, axiosConfig })) // 生成缓存名
   endCacheData.cacheName = cacheName // 将缓存名赋值给缓存数据对象
 
   if (isServer) return endCacheData // 如果在服务器环境中直接返回
