@@ -34,15 +34,8 @@ export default async function toRequest(
   const transformResponse = await getTransformResponse(params, axiosConfig)
 
   const endAxiosConfig = await (() => {
-    if (isGetLike) {
-      return {
-        ...axiosConfig,
-        method,
-        url,
-        params: { ...(axiosConfig.params || {}), ...data, ..._rid },
-        transformResponse,
-      }
-    }
+    const endParams = isGetLike ? data : {}
+    let endData: any = isGetLike ? {} : data
 
     if (params._isUpLoad) {
       if (typeof axiosConfig.headers !== 'object') {
@@ -50,20 +43,22 @@ export default async function toRequest(
       }
 
       axiosConfig.headers['Content-Type'] = 'multipart/form-data; charset=UTF-8'
-      data = new FormData()
+      endData = new FormData()
       for (const key in data) {
         if (!data[key] || typeof data[key] === 'object' || Array.isArray(data[key])) {
-          data.append(key, new Blob([JSON.stringify(data[key])], { type: 'application/json' }))
+          endData.append(key, new Blob([JSON.stringify(data[key])], { type: 'application/json' }))
         } else {
-          data.append(key, data[key])
+          endData.append(key, data[key])
         }
       }
     }
 
-    return { ...axiosConfig, method, url, params: { ..._rid }, data, transformResponse }
+    return { ...axiosConfig, method, url, params: { ...(axiosConfig.params || {}), ...endParams, ..._rid }, data: endData, transformResponse }
   })()
 
   try {
+    // @ts-ignore
+    if (window.__yhl_debug__ === true) console.log('请求参数', endAxiosConfig)
     const res = await AXIOS(endAxiosConfig)
     return { type: 'success', res }
   } catch (error: any) {

@@ -228,7 +228,7 @@ async function request<T = any>(method: Method | FirstOptionType, url?: string, 
     }
   }
 
-  const resType = res.__ress.type || 'success'
+  const resType = res.__ress?.type || 'success'
 
   // 请求后第一次回调-返回数据将作为新的数据向后传递
   if (params.__requestAfterMiddleFn) {
@@ -255,12 +255,12 @@ async function request<T = any>(method: Method | FirstOptionType, url?: string, 
 
   // 请求后回调
   if (params.__requestAfterFn) {
-    if (res.__ress.type === 'success') {
-      const resData = await params.__requestAfterFn(res.__ress.type, res.data, method, url, data, params, axiosConfig)
+    if (res.__ress?.type === 'success') {
+      const resData = await params.__requestAfterFn(res.__ress?.type, res.data, method, url, data, params, axiosConfig)
       if (resData && hasVal(resData)) res.data = resData
     }
-    if (res.__ress.type === 'fail') {
-      params.__requestAfterFn(res.__ress.type, res.error, method, url, data, params, axiosConfig)
+    if (res.__ress?.type === 'fail') {
+      params.__requestAfterFn(res.__ress?.type, res.error, method, url, data, params, axiosConfig)
     }
   }
 
