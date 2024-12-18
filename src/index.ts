@@ -116,6 +116,8 @@ type ParamsType = {
 
   // 【15】post请求表单提交
   _isUpLoad?: boolean
+  // 【15】post请求表单提交
+  __upLoad2formData?: false | ((data: AnyObj) => FormData)
 
   //! 开始发送请求
 

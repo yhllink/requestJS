@@ -38,18 +38,14 @@ export default async function toRequest(
     let endData: any = isGetLike ? {} : data
 
     if (params._isUpLoad) {
-      if (typeof axiosConfig.headers !== 'object') {
-        axiosConfig.headers = {}
-      }
-
+      if (typeof axiosConfig.headers !== 'object') axiosConfig.headers = {}
       axiosConfig.headers['Content-Type'] = 'multipart/form-data; charset=UTF-8'
-      endData = new FormData()
-      for (const key in data) {
-        if (!data[key] || typeof data[key] === 'object' || Array.isArray(data[key])) {
-          endData.append(key, new Blob([JSON.stringify(data[key])], { type: 'application/json' }))
-        } else {
-          endData.append(key, data[key])
-        }
+
+      if (params.__upLoad2formData) {
+        endData = params.__upLoad2formData(data)
+      } else {
+        endData = new FormData()
+        for (const key in data) endData.append(key, data[key])
       }
     }
 
